@@ -8,11 +8,16 @@ import (
 )
 
 func main() {
-	domains := []string{"ops.party"}
+	hostnames := []string{"ops.party"}
 
-	for _, domain := range domains {
-		if !acmeutils.ValidateHostname(domain) {
-			log.Fatal("%s is not a valid domain", domain)
+	// Ensure all hostnames provided are valid.
+	for idx := range hostnames {
+		norm, err := acmeutils.NormalizeHostname(hostnames[idx])
+		if err != nil {
+			log.Fatalf("invalid hostname: %#v: %v", hostnames[idx], err)
+			return
 		}
+		hostnames[idx] = norm
 	}
+
 }
