@@ -66,7 +66,7 @@ func init() {
 }
 
 func indexHandler(c *gin.Context) {
-	c.HTML(http.StatusOK, "index.tmpl", gin.H{})
+	c.HTML(http.StatusOK, "index.html", gin.H{})
 }
 
 func getLoginURL(state string) string {
@@ -105,7 +105,7 @@ func loginHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Set("state", state)
 	session.Save()
-	c.Writer.Write([]byte("<html><title>Golang Google</title> <body> <a href='" + getLoginURL(state) + "'><button>Login with Google!</button> </a> </body></html>"))
+	c.Redirect(http.StatusFound, getLoginURL(state))
 }
 
 func main() {
@@ -119,5 +119,5 @@ func main() {
 	router.GET("/login", loginHandler)
 	router.GET("/auth", authHandler)
 
-	router.Run("127.0.0.1:9090")
+	router.Run(":9090")
 }
