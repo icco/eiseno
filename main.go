@@ -49,10 +49,18 @@ func randToken() string {
 func init() {
 	file, err := ioutil.ReadFile("./creds.json")
 	if err != nil {
-		log.Printf("File error: %v\n", err)
-		os.Exit(1)
+		if os.IsNotExist(err) {
+			cred = Credentials{
+				Cid:     os.Getenv("GoogleCid"),
+				Csecret: os.Getenv("GoogleCsecret"),
+			}
+		} else {
+			log.Printf("File error: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		json.Unmarshal(file, &cred)
 	}
-	json.Unmarshal(file, &cred)
 
 	conf = &oauth2.Config{
 		ClientID:     cred.Cid,
