@@ -127,10 +127,10 @@ func main() {
 	router.GET("/login", loginHandler)
 	router.GET("/auth", authHandler)
 
-	port := "9090"
-	if os.Getenv("PORT") != "" {
-		port = os.Getenv("PORT")
+	port := os.Getenv("PORT")
+	if port == "" {
+		log.Fatal("$PORT must be set")
 	}
 
-	router.Run(fmt.Sprintf(":%s", port))
+	router.Run(":" + port)
 }
