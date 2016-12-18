@@ -22,4 +22,6 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
 creds.json
+vendor
