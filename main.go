@@ -65,9 +65,10 @@ func init() {
 	conf = &oauth2.Config{
 		ClientID:     cred.Cid,
 		ClientSecret: cred.Csecret,
-		RedirectURL:  "http://127.0.0.1:9090/auth",
+		RedirectURL:  "https://eiseno.herokuapp.com/auth",
+		// https://developers.google.com/identity/protocols/googlescopes#google_sign-in
 		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email", // You have to select your own scope from here -> https://developers.google.com/identity/protocols/googlescopes#google_sign-in
+			"https://www.googleapis.com/auth/userinfo.email",
 		},
 		Endpoint: google.Endpoint,
 	}
@@ -104,7 +105,7 @@ func authHandler(c *gin.Context) {
 	}
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
-	log.Println("Email body: ", string(data))
+	log.Println("data: ", string(data))
 	c.Status(http.StatusOK)
 }
 
