@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"gopkg.in/pg.v5"
 )
 
 // Credentials which stores google ids.
@@ -24,15 +25,12 @@ type Credentials struct {
 
 // User is a retrieved and authentiacted user.
 type User struct {
-	Sub           string `json:"sub"`
-	Name          string `json:"name"`
-	GivenName     string `json:"given_name"`
-	FamilyName    string `json:"family_name"`
-	Profile       string `json:"profile"`
-	Picture       string `json:"picture"`
-	Email         string `json:"email"`
-	EmailVerified string `json:"email_verified"`
-	Gender        string `json:"gender"`
+	Id    int64
+	Email string `json:"email"`
+}
+
+func (u User) String() string {
+	return fmt.Sprintf("User<%d %s %v>", u.Id, u.Email)
 }
 
 var cred Credentials
@@ -72,6 +70,29 @@ func init() {
 		},
 		Endpoint: google.Endpoint,
 	}
+
+	opts := &pg.Options{
+		User: "postgres",
+	}
+
+	db := pg.Connect(opts)
+	err = createSchema(db)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func createSchema(db *pg.DB) error {
+	queries := []string{
+		`CREATE TABLE users (id serial, name text, emails jsonb)`,
+	}
+	for _, q := range queries {
+		_, err := db.Exec(q)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func indexHandler(c *gin.Context) {
