@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gin-gonic/contrib/sessions"
@@ -29,12 +30,25 @@ type User struct {
 	Email string `json:"email"`
 }
 
+type Site struct {
+	Id     int
+	Domain string
+	User   *User
+	Dns    bool
+	Ssl    bool
+}
+
 func (u User) String() string {
-	return fmt.Sprintf("User<%d %s %v>", u.Id, u.Email)
+	return fmt.Sprintf("User<%d %s>", u.Id, u.Email)
+}
+
+func (s Site) String() string {
+	return fmt.Sprintf("Site<%d %s %v>", s.Id, s.Domain, s.User)
 }
 
 var cred Credentials
-var conf *oauth2.Config
+var dbOpts *pg.Options
+var oauthConf *oauth2.Config
 var state string
 var store = sessions.NewCookieStore([]byte("secret"))
 
@@ -60,10 +74,10 @@ func init() {
 		json.Unmarshal(file, &cred)
 	}
 
-	conf = &oauth2.Config{
+	oauthConf = &oauth2.Config{
 		ClientID:     cred.Cid,
 		ClientSecret: cred.Csecret,
-		RedirectURL:  "https://eiseno.herokuapp.com/auth",
+		RedirectURL:  "http://127.0.0.1:9090/auth",
 		// https://developers.google.com/identity/protocols/googlescopes#google_sign-in
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
@@ -71,11 +85,27 @@ func init() {
 		Endpoint: google.Endpoint,
 	}
 
-	opts := &pg.Options{
-		User: "postgres",
+	dbOpts := &pg.Options{
+		User:     "postgres",
+		Database: "eiseno",
 	}
 
-	db := pg.Connect(opts)
+	// If on heroku, set some things
+	if os.Getenv("GIN_MODE") == "release" {
+		oauthConf.RedirectURL = "https://eiseno.herokuapp.com/auth"
+
+		u, err := url.Parse(os.Getenv("DATABASE_URL"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		dbOpts.User = u.User.Username()
+		dbOpts.Password, _ = u.User.Password()
+		dbOpts.Addr = u.Host
+		dbOpts.Database = u.Path
+	}
+
+	db := pg.Connect(dbOpts)
 	err = createSchema(db)
 	if err != nil {
 		panic(err)
@@ -84,7 +114,8 @@ func init() {
 
 func createSchema(db *pg.DB) error {
 	queries := []string{
-		`CREATE TABLE users (id serial, name text, emails jsonb)`,
+		`CREATE TABLE IF NOT EXISTS users (id serial, name text, email text)`,
+		`CREATE TABLE IF NOT EXISTS sites (id serial, domain text, user_id bigint, ssl boolean, dns boolean)`,
 	}
 	for _, q := range queries {
 		_, err := db.Exec(q)
@@ -100,7 +131,7 @@ func indexHandler(c *gin.Context) {
 }
 
 func getLoginURL(state string) string {
-	return conf.AuthCodeURL(state)
+	return oauthConf.AuthCodeURL(state)
 }
 
 func authHandler(c *gin.Context) {
@@ -112,21 +143,37 @@ func authHandler(c *gin.Context) {
 		return
 	}
 
-	tok, err := conf.Exchange(oauth2.NoContext, c.Query("code"))
+	tok, err := oauthConf.Exchange(oauth2.NoContext, c.Query("code"))
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	client := conf.Client(oauth2.NoContext, tok)
+	client := oauthConf.Client(oauth2.NoContext, tok)
 	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	defer email.Body.Close()
-	data, _ := ioutil.ReadAll(email.Body)
+	data, err := ioutil.ReadAll(email.Body)
+	if err != nil {
+		panic(err)
+	}
 	log.Println("data: ", string(data))
+
+	var user User
+	err = json.Unmarshal(data, &user)
+	if err != nil {
+		panic(err)
+	}
+
+	db := pg.Connect(dbOpts)
+	err = db.Insert(user)
+	if err != nil {
+		panic(err)
+	}
+
 	c.Status(http.StatusOK)
 }
 
