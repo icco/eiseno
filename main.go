@@ -85,7 +85,7 @@ func init() {
 		Endpoint: google.Endpoint,
 	}
 
-	dbOpts := &pg.Options{
+	dbOpts = &pg.Options{
 		User:     "postgres",
 		Database: "eiseno",
 	}
@@ -114,7 +114,7 @@ func init() {
 
 func createSchema(db *pg.DB) error {
 	queries := []string{
-		`CREATE TABLE IF NOT EXISTS users (id serial, name text, email text)`,
+		`CREATE TABLE IF NOT EXISTS users (id serial, email text)`,
 		`CREATE TABLE IF NOT EXISTS sites (id serial, domain text, user_id bigint, ssl boolean, dns boolean)`,
 	}
 	for _, q := range queries {
@@ -162,7 +162,7 @@ func authHandler(c *gin.Context) {
 	}
 	log.Println("data: ", string(data))
 
-	var user User
+	var user *User
 	err = json.Unmarshal(data, &user)
 	if err != nil {
 		panic(err)
