@@ -209,6 +209,10 @@ func homeHandler(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
+
+	c.HTML(http.StatusOK, "home.html", gin.H{
+		"user": user,
+	})
 }
 
 func loginHandler(c *gin.Context) {
