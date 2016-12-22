@@ -36,15 +36,6 @@
 			"Rev": "771220e58d9cbd3e4d65b3c38286865ca91b0619"
 		},
 		{
-			"ImportPath": "github.com/gin-gonic/contrib/sessions",
-			"Rev": "45b1fbf9c69a8b8905d20f665b559d03f932db84"
-		},
-		{
-			"ImportPath": "github.com/gin-gonic/gin",
-			"Comment": "v1.1.4",
-			"Rev": "e2212d40c62a98b388a5eb48ecbdcf88534688ba"
-		},
-		{
 			"ImportPath": "github.com/gin-gonic/gin/binding",
 			"Comment": "v1.1.4",
 			"Rev": "e2212d40c62a98b388a5eb48ecbdcf88534688ba"
