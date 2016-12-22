@@ -11,10 +11,10 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/gin-gonic/contrib/sessions"
-	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/sessions"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/pg.v5"
 )
 
@@ -169,12 +169,46 @@ func authHandler(c *gin.Context) {
 	}
 
 	db := pg.Connect(dbOpts)
-	err = db.Insert(user)
+	_, err = db.Model(user).
+		Column("id").
+		Where("email = ?email").
+		Returning("id").
+		SelectOrInsert()
 	if err != nil {
 		panic(err)
 	}
 
-	c.Status(http.StatusOK)
+	session.Set("user_id", user.Id)
+	session.Save()
+
+	c.Redirect(http.StatusFound, "/home")
+}
+
+func homeHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	var user_id int64
+
+	// Session data lacks type.
+	v := session.Get("user_id")
+	if v == nil {
+		user_id = 0
+	} else {
+		user_id = v.(int64)
+	}
+
+	if user_id < 1 {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	db := pg.Connect(dbOpts)
+	user := User{
+		Id: user_id,
+	}
+	err := db.Select(&user)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func loginHandler(c *gin.Context) {
@@ -187,7 +221,7 @@ func loginHandler(c *gin.Context) {
 
 func main() {
 	router := gin.Default()
-	router.Use(sessions.Sessions("goquestsession", store))
+	router.Use(sessions.Sessions("eiseno_session", store))
 	router.Static("/css", "./static/css")
 	router.Static("/img", "./static/img")
 	router.LoadHTMLGlob("templates/*")
@@ -195,6 +229,7 @@ func main() {
 	router.GET("/", indexHandler)
 	router.GET("/login", loginHandler)
 	router.GET("/auth", authHandler)
+	router.GET("/home", homeHandler)
 
 	port := "9090"
 	if os.Getenv("PORT") != "" {

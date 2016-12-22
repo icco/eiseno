@@ -32,6 +32,10 @@
 			"Rev": "f8c71fc158ba13d50a7f5d8f10ea18ec49463c73"
 		},
 		{
+			"ImportPath": "github.com/gin-contrib/sessions",
+			"Rev": "771220e58d9cbd3e4d65b3c38286865ca91b0619"
+		},
+		{
 			"ImportPath": "github.com/gin-gonic/contrib/sessions",
 			"Rev": "45b1fbf9c69a8b8905d20f665b559d03f932db84"
 		},
@@ -216,6 +220,11 @@
 			"ImportPath": "google.golang.org/grpc/transport",
 			"Comment": "v1.0.5-3-g8712952b7d64",
 			"Rev": "8712952b7d646dbbbc6fb73a782174f3115060f3"
+		},
+		{
+			"ImportPath": "gopkg.in/gin-gonic/gin.v1",
+			"Comment": "v1.1.4",
+			"Rev": "e2212d40c62a98b388a5eb48ecbdcf88534688ba"
 		},
 		{
 			"ImportPath": "gopkg.in/go-playground/validator.v8",
