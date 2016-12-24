@@ -1,1 +1,21 @@
-{{ .user.Email }}
+<!doctype html>
+<html>
+  <head>
+    <title>Onesie</title>
+    <link rel="stylesheet" href="https://unpkg.com/tachyons@4.6.1/css/tachyons.min.css"/>
+  </head>
+  <body>
+    <h1>Welcome!</h1>
+
+    <form action="/sites" method="post">
+      <input type="text" placeholder="example.com" name="domain"/>
+      <button type="submit">Submit</button>
+    </form>
+
+    <ul>
+      {{ range $key, $s := .user.Sites }}
+        <li>{{ $s.Id }}: {{ $s.Domain }}</li>
+      {{ end }}
+    </ul>
+  </body>
+</html>

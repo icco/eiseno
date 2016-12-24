@@ -28,12 +28,13 @@ type Credentials struct {
 type User struct {
 	Id    int64
 	Email string `json:"email"`
+	Sites []*Site
 }
 
 type Site struct {
-	Id     int
+	Id     int64
 	Domain string
-	User   *User
+	UserId int64
 	Dns    bool
 	Ssl    bool
 }
@@ -43,7 +44,7 @@ func (u User) String() string {
 }
 
 func (s Site) String() string {
-	return fmt.Sprintf("Site<%d %s %v>", s.Id, s.Domain, s.User)
+	return fmt.Sprintf("Site<%d %s %v>", s.Id, s.Domain, s.UserId)
 }
 
 var cred Credentials
@@ -205,7 +206,7 @@ func homeHandler(c *gin.Context) {
 	user := User{
 		Id: user_id,
 	}
-	err := db.Select(&user)
+	err := db.Model(&user).Column("user.*", "Sites").First()
 	if err != nil {
 		panic(err)
 	}
@@ -213,6 +214,45 @@ func homeHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "home.html", gin.H{
 		"user": user,
 	})
+}
+
+func siteHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	var user_id int64
+
+	// Session data lacks type.
+	v := session.Get("user_id")
+	if v == nil {
+		user_id = 0
+	} else {
+		user_id = v.(int64)
+	}
+
+	if user_id < 1 {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+	db := pg.Connect(dbOpts)
+	user := User{
+		Id: user_id,
+	}
+	err := db.Select(&user)
+	if err != nil {
+		panic(err)
+	}
+
+	site := Site{
+		Domain: c.PostForm("domain"),
+		UserId: user.Id,
+		Ssl:    false,
+		Dns:    false,
+	}
+	err = db.Insert(&site)
+	if err != nil {
+		panic(err)
+	}
+
+	c.Redirect(http.StatusFound, "/home")
 }
 
 func loginHandler(c *gin.Context) {
@@ -234,6 +274,7 @@ func main() {
 	router.GET("/login", loginHandler)
 	router.GET("/auth", authHandler)
 	router.GET("/home", homeHandler)
+	router.POST("/sites", siteHandler)
 
 	port := "9090"
 	if os.Getenv("PORT") != "" {
