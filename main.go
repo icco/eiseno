@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,12 +14,15 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
+	"github.com/mattes/migrate/migrate"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/pg.v5"
 	"gopkg.in/pg.v5/orm"
+
+	_ "github.com/mattes/migrate/driver/postgres"
 )
 
 // Credentials which stores google ids.
@@ -146,18 +150,26 @@ func init() {
 }
 
 func createSchema(db *pg.DB) error {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS users (id serial, email text)`,
-		`CREATE TABLE IF NOT EXISTS sites (id serial, domain text, user_id bigint, ssl boolean, dns boolean)`,
-		`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
-		`CREATE TABLE IF NOT EXISTS credentials (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), secret_enc text, user_id bigint)`,
+	userinfo := dbOpts.User
+	if dbOpts.Password != "" {
+		userinfo = fmt.Sprintf("%s:%s", dbOpts.User, dbOpts.Password)
 	}
-	for _, q := range queries {
-		_, err := db.Exec(q)
-		if err != nil {
-			return err
+
+	opts := ""
+	if os.Getenv("GIN_MODE") != "release" {
+		opts = "?sslmode=disable"
+	}
+
+	dbUrl := fmt.Sprintf("postgres://%s@%s/%s%s", userinfo, dbOpts.Addr, dbOpts.Database, opts)
+
+	allErrors, ok := migrate.UpSync(dbUrl, "./db/migrations")
+	if !ok {
+		for _, v := range allErrors {
+			log.Printf("Migration error: %v\n", v)
 		}
+		return errors.New("Error running migrations.")
 	}
+
 	return nil
 }
 
@@ -321,6 +333,7 @@ func main() {
 	router.GET("/auth", authHandler)
 	router.GET("/home", homeHandler)
 	router.POST("/sites", siteHandler)
+	router.POST("/upload", uploadHandler)
 
 	port := "9090"
 	if os.Getenv("PORT") != "" {
