@@ -75,8 +75,48 @@
 			"Rev": "74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff"
 		},
 		{
+			"ImportPath": "github.com/lib/pq",
+			"Comment": "go1.0-cutoff-136-g5bf161122cd6",
+			"Rev": "5bf161122cd640c2a5a2c1d7fa49ea9befff31dd"
+		},
+		{
+			"ImportPath": "github.com/lib/pq/oid",
+			"Comment": "go1.0-cutoff-136-g5bf161122cd6",
+			"Rev": "5bf161122cd640c2a5a2c1d7fa49ea9befff31dd"
+		},
+		{
 			"ImportPath": "github.com/manucorporat/sse",
 			"Rev": "ee05b128a739a0fb76c7ebd3ae4810c1de808d6d"
+		},
+		{
+			"ImportPath": "github.com/mattes/migrate/driver",
+			"Comment": "v1.3.0-35-g3e3cef3763f4",
+			"Rev": "3e3cef3763f4e1422745768d666e7a7106da89f9"
+		},
+		{
+			"ImportPath": "github.com/mattes/migrate/driver/postgres",
+			"Comment": "v1.3.0-35-g3e3cef3763f4",
+			"Rev": "3e3cef3763f4e1422745768d666e7a7106da89f9"
+		},
+		{
+			"ImportPath": "github.com/mattes/migrate/file",
+			"Comment": "v1.3.0-35-g3e3cef3763f4",
+			"Rev": "3e3cef3763f4e1422745768d666e7a7106da89f9"
+		},
+		{
+			"ImportPath": "github.com/mattes/migrate/migrate",
+			"Comment": "v1.3.0-35-g3e3cef3763f4",
+			"Rev": "3e3cef3763f4e1422745768d666e7a7106da89f9"
+		},
+		{
+			"ImportPath": "github.com/mattes/migrate/migrate/direction",
+			"Comment": "v1.3.0-35-g3e3cef3763f4",
+			"Rev": "3e3cef3763f4e1422745768d666e7a7106da89f9"
+		},
+		{
+			"ImportPath": "github.com/mattes/migrate/pipe",
+			"Comment": "v1.3.0-35-g3e3cef3763f4",
+			"Rev": "3e3cef3763f4e1422745768d666e7a7106da89f9"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-isatty",
