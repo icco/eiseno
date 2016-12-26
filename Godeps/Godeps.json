@@ -50,6 +50,11 @@
 			"Rev": "dda510ac0fd43b39770f22ac6260eb91d377bce3"
 		},
 		{
+			"ImportPath": "github.com/google/uuid",
+			"Comment": "v.1-22-g064e2069ce9c",
+			"Rev": "064e2069ce9c359c118179501254f67d7d37ba24"
+		},
+		{
 			"ImportPath": "github.com/googleapis/gax-go",
 			"Rev": "da06d194a00e19ce00d9011a13931c3f6f6887c7"
 		},
@@ -76,6 +81,14 @@
 		{
 			"ImportPath": "github.com/mattn/go-isatty",
 			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/bcrypt",
+			"Rev": "3fbbcd23f1cb824e69491a5930cfeff09b12f4d2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/blowfish",
+			"Rev": "3fbbcd23f1cb824e69491a5930cfeff09b12f4d2"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
