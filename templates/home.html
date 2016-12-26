@@ -47,24 +47,6 @@
           <button class="b ph3 pv2 input-reset ba b--black bg-transparent grow pointer f6" type="submit">Add Domain</button>
         </div>
       </form>
-
-      <h2>Upload files to a domain!</h2>
-      <form class="pa4 black-80" action="/upload" method="post">
-        <div class="measure">
-          <label for="domain_id" class="f6 b db mb2">Domain name</label>
-          <select name="domain_id" required class="ba b--black-20 pa2 mb4 db w-100">
-            {{ range $key, $s := .user.Sites }}
-            <option value="{{ $key }}">{{ $s.Domain }}</option>
-            {{ end }}
-          </select>
-
-          <label for="files" class="f6 b db mb2">Choose Files</label>
-          <input type="file" multiple class="input-reset ba b--black-20 pa2 mb2 db w-100" name="files"/>
-          <small class="f6 black-60 db mb4">All files will be put at / of domain.</small>
-
-          <button class="b ph3 pv2 input-reset ba b--black bg-transparent grow pointer f6" type="submit">Upload Files</button>
-        </div>
-      </form>
     </article>
   </body>
 </html>
