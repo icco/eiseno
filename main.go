@@ -12,23 +12,59 @@ import (
 	"os"
 
 	"github.com/gin-contrib/sessions"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/pg.v5"
+	"gopkg.in/pg.v5/orm"
 )
 
 // Credentials which stores google ids.
-type Credentials struct {
+type GoogleCredentials struct {
 	Cid     string `json:"cid"`
 	Csecret string `json:"csecret"`
 }
 
+type Credential struct {
+	Id        string `json:"id"`
+	UserId    int64
+	Secret    string `sql:"-"`
+	SecretEnc string `json:"-"`
+}
+
+func (cred *Credential) IsValidCred() error {
+	return bcrypt.CompareHashAndPassword([]byte(cred.SecretEnc), []byte(cred.Secret))
+}
+
+func (c *Credential) BeforeInsert(db orm.DB) error {
+	enc, err := bcrypt.GenerateFromPassword([]byte(c.Secret), 12)
+	c.SecretEnc = string(enc)
+
+	return err
+}
+
 // User is a retrieved and authentiacted user.
 type User struct {
-	Id    int64
-	Email string `json:"email"`
-	Sites []*Site
+	Id          int64
+	Email       string `json:"email"`
+	Sites       []*Site
+	Credentials []*Credential
+}
+
+func (u User) String() string {
+	return fmt.Sprintf("User<%d %s>", u.Id, u.Email)
+}
+
+func (u *User) GenerateCred() error {
+	secret := uuid.New()
+	cred := Credential{
+		UserId: u.Id,
+		Secret: secret.String(),
+	}
+	db := pg.Connect(dbOpts)
+	return db.Insert(&cred)
 }
 
 type Site struct {
@@ -39,15 +75,11 @@ type Site struct {
 	Ssl    bool
 }
 
-func (u User) String() string {
-	return fmt.Sprintf("User<%d %s>", u.Id, u.Email)
-}
-
 func (s Site) String() string {
 	return fmt.Sprintf("Site<%d %s %v>", s.Id, s.Domain, s.UserId)
 }
 
-var cred Credentials
+var cred GoogleCredentials
 var dbOpts *pg.Options
 var oauthConf *oauth2.Config
 var state string
@@ -63,7 +95,7 @@ func init() {
 	file, err := ioutil.ReadFile("./creds.json")
 	if err != nil {
 		if os.IsNotExist(err) {
-			cred = Credentials{
+			cred = GoogleCredentials{
 				Cid:     os.Getenv("GoogleCid"),
 				Csecret: os.Getenv("GoogleCsecret"),
 			}
@@ -93,7 +125,7 @@ func init() {
 
 	// If on heroku, set some things
 	if os.Getenv("GIN_MODE") == "release" {
-		oauthConf.RedirectURL = "https://eiseno.herokuapp.com/auth"
+		oauthConf.RedirectURL = "https://onesie.website/auth"
 
 		u, err := url.Parse(os.Getenv("DATABASE_URL"))
 		if err != nil {
@@ -117,6 +149,8 @@ func createSchema(db *pg.DB) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS users (id serial, email text)`,
 		`CREATE TABLE IF NOT EXISTS sites (id serial, domain text, user_id bigint, ssl boolean, dns boolean)`,
+		`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
+		`CREATE TABLE IF NOT EXISTS credentials (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), secret_enc text, user_id bigint)`,
 	}
 	for _, q := range queries {
 		_, err := db.Exec(q)
@@ -206,14 +240,26 @@ func homeHandler(c *gin.Context) {
 	user := User{
 		Id: user_id,
 	}
-	err := db.Model(&user).Column("user.*", "Sites").First()
+	err := db.Model(&user).Column("user.*", "Sites", "Credentials").First()
 	if err != nil {
 		panic(err)
+	}
+
+	if len(user.Credentials) == 0 {
+		err = user.GenerateCred()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	c.HTML(http.StatusOK, "home.html", gin.H{
 		"user": user,
 	})
+}
+
+func uploadHandler(c *gin.Context) {
+	// Get Headers, validate
+
 }
 
 func siteHandler(c *gin.Context) {
