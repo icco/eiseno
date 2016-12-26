@@ -8,6 +8,35 @@
     <article class="pa4 ph7-l georgia mw9-l">
       <h1>Welcome to Onesie!</h1>
 
+      <p>Things that don't quite work yet (last updated 2016-12-26):</p>
+      <ul>
+        <li>SSL Certs</li>
+        <li>File upload via web UI</li>
+      </ul>
+
+      <h2>Authentication Keys</h2>
+
+      <div class="pa4">
+        <div class="overflow-auto">
+          <table class="f6 w-100 mw8 center" cellspacing="0">
+            <thead>
+              <tr>
+                <th class="fw6 bb b--black-20 tl pb3 pr3 bg-white">Client ID</th>
+                <th class="fw6 bb b--black-20 tl pb3 pr3 bg-white">Client Secret</th>
+              </tr>
+            </thead>
+            <tbody class="lh-copy">
+              {{ range $k, $c := .user.Credentials }}
+              <tr>
+                <td class="pv3 pr3 bb b--black-20">{{ $c.Id }}</td>
+                <td class="pv3 pr3 bb b--black-20">{{ $c.Secret }}</td>
+              </tr>
+            {{ end }}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <h2>Add a new domain!</h2>
       <form class="pa4 black-80" action="/sites" method="post">
         <div class="measure">

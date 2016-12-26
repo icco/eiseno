@@ -34,7 +34,7 @@ type GoogleCredentials struct {
 type Credential struct {
 	Id        string `json:"id"`
 	UserId    int64
-	Secret    string `sql:"-"`
+	Secret    string `json:"secret"`
 	SecretEnc string `json:"-"`
 }
 
