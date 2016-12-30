@@ -97,19 +97,10 @@ func randToken() string {
 }
 
 func init() {
-	file, err := ioutil.ReadFile("./creds.json")
-	if err != nil {
-		if os.IsNotExist(err) {
-			cred = GoogleCredentials{
-				Cid:     os.Getenv("GoogleCid"),
-				Csecret: os.Getenv("GoogleCsecret"),
-			}
-		} else {
-			log.Printf("File error: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		json.Unmarshal(file, &cred)
+	// OAuth Cred Setup
+	cred = GoogleCredentials{
+		Cid:     os.Getenv("GoogleCid"),
+		Csecret: os.Getenv("GoogleCsecret"),
 	}
 
 	oauthConf = &oauth2.Config{
@@ -123,6 +114,19 @@ func init() {
 		Endpoint: google.Endpoint,
 	}
 
+	// General google server auth needed by pubsub module
+	_, err := ioutil.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			json_str := []byte(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"))
+			err := ioutil.WriteFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"), json_str, 0777)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	// DB Connection Setup
 	dbOpts = &pg.Options{
 		User:     "postgres",
 		Database: "eiseno",
@@ -351,6 +355,8 @@ func main() {
 	router.GET("/login", loginHandler)
 	router.GET("/auth", authHandler)
 	router.GET("/home", homeHandler)
+	router.GET("/cron", cronHandler)
+
 	router.POST("/sites", siteHandler)
 	router.POST("/upload", uploadHandler)
 
