@@ -335,6 +335,10 @@ func main() {
 	router.POST("/sites", siteHandler)
 	router.POST("/upload", uploadHandler)
 
+	router.GET("/.well-known/acme-challenge/aL3VE-bTLaSS08DGPs-t25c5gZH2Sp_2E0e12ygtSJ4", func(c *gin.Context) {
+		c.String(http.StatusOK, "aL3VE-bTLaSS08DGPs-t25c5gZH2Sp_2E0e12ygtSJ4.vFVx33rpM-z2CkG8kIUIoqNLIJ_GIC7TCte2t3N4-SE")
+	})
+
 	port := "9090"
 	if os.Getenv("PORT") != "" {
 		port = os.Getenv("PORT")
