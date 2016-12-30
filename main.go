@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 
+	"cloud.google.com/go/pubsub"
 	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
 	"github.com/mattes/migrate/migrate"
@@ -319,6 +320,24 @@ func loginHandler(c *gin.Context) {
 	session.Set("state", state)
 	session.Save()
 	c.Redirect(http.StatusFound, getLoginURL(state))
+}
+
+func cronHandler(c *gin.Context) {
+	client, err := pubsub.NewClient(c, "940380154622")
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+
+	// The name for the new topic
+	topicName := "my-new-topic"
+
+	// Creates the new topic
+	topic, err := client.CreateTopic(ctx, topicName)
+	if err != nil {
+		log.Fatalf("Failed to create topic: %v", err)
+	}
+
+	fmt.Printf("Topic %v created.", topic)
 }
 
 func main() {
