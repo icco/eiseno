@@ -113,6 +113,7 @@ func init() {
 		},
 		Endpoint: google.Endpoint,
 	}
+	log.Print("OAuth Creds setup.")
 
 	// General google server auth needed by pubsub module
 	_, err := ioutil.ReadFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
@@ -125,6 +126,7 @@ func init() {
 			}
 		}
 	}
+	log.Print("Google Creds Setup.")
 
 	// DB Connection Setup
 	dbOpts = &pg.Options{
@@ -152,6 +154,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	log.Print("Database Setup.")
 }
 
 func createSchema(db *pg.DB) error {
@@ -332,16 +335,17 @@ func cronHandler(c *gin.Context) {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	// The name for the new topic
-	topicName := "my-new-topic"
-
-	// Creates the new topic
-	topic, err := client.CreateTopic(c, topicName)
+	// The name for the update topic
+	topicName := "onesie-updates"
+	topic := client.Topic(topicName)
+	msgIDs, err := topic.Publish(c, &pubsub.Message{
+		Data: []byte("update"),
+	})
 	if err != nil {
-		log.Fatalf("Failed to create topic: %v", err)
+		log.Fatal("Couldn't publish: %+v", err)
 	}
-
-	fmt.Printf("Topic %v created.", topic)
+	log.Printf("Published a message with a message ID: %s\n", msgIDs[0])
+	c.String(http.StatusOK, "OK")
 }
 
 func main() {
