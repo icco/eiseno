@@ -351,30 +351,41 @@ func cronHandler(c *gin.Context) {
 
 func main() {
 	secOpts := secure.Options{
-		FrameDeny:             true,
-		ContentTypeNosniff:    true,
-		BrowserXssFilter:      true,
-		ContentSecurityPolicy: "default-src 'self'",
+		AllowedHosts:         []string{"onesie.website", "www.onesie.website"},
+		SSLRedirect:          true,
+		SSLHost:              "www.onesie.website",
+		SSLProxyHeaders:      map[string]string{"X-Forwarded-Proto": "https"},
+		STSSeconds:           315360000,
+		STSIncludeSubdomains: true,
+		STSPreload:           true,
+		FrameDeny:            true,
+		ContentTypeNosniff:   true,
+		BrowserXssFilter:     true,
+		IsDevelopment:        false,
 	}
 
 	// Prod Headers
-	if os.Getenv("GIN_MODE") == "release" {
-		secOpts = secure.Options{
-			AllowedHosts:          []string{"onesie.website", "www.onesie.website"},
-			SSLRedirect:           true,
-			SSLHost:               "www.onesie.website",
-			SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-			STSSeconds:            315360000,
-			STSIncludeSubdomains:  true,
-			STSPreload:            true,
-			FrameDeny:             true,
-			ContentTypeNosniff:    true,
-			BrowserXssFilter:      true,
-			ContentSecurityPolicy: "default-src 'self'",
-		}
+	if os.Getenv("GIN_MODE") != "release" {
+		secOpts.IsDevelopment = true
 	}
 
 	secureMiddleware := secure.New(secOpts)
+	secureFunc := func() gin.HandlerFunc {
+		return func(c *gin.Context) {
+			err := secureMiddleware.Process(c.Writer, c.Request)
+
+			// If there was an error, do not continue.
+			if err != nil {
+				c.Abort()
+				return
+			}
+
+			// Avoid header rewrite if response is a redirection.
+			if status := c.Writer.Status(); status > 300 && status < 399 {
+				c.Abort()
+			}
+		}
+	}()
 
 	router := gin.Default()
 
