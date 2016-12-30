@@ -139,7 +139,7 @@ func init() {
 		dbOpts.User = u.User.Username()
 		dbOpts.Password, _ = u.User.Password()
 		dbOpts.Addr = u.Host
-		dbOpts.Database = u.Path
+		dbOpts.Database = u.Path[1:]
 	}
 
 	db := pg.Connect(dbOpts)
