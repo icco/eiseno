@@ -37,6 +37,20 @@
         </div>
       </div>
 
+      <h2>Existing Domains.</h2>
+      <p>For each of these to work, they need to have A records pointing at the following IPs:</p>
+      <ul>
+        <li>104.198.128.22</li>
+        <li>104.154.142.2</li>
+      </ul>
+
+      <p>Your existing domains:</p>
+      <ul>
+        {{ range $key, $s := .user.Sites }}
+          <li>{{ $s.Domain }}</li>
+        {{ end }}
+      </ul>
+
       <h2>Add a new domain!</h2>
       <form class="pa4 black-80" action="/sites" method="post">
         <div class="measure">
