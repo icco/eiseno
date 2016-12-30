@@ -33,7 +33,7 @@ type GoogleCredentials struct {
 
 type Credential struct {
 	Id        string `json:"id"`
-	UserId    int64
+	UserId    int64  `json:"-"`
 	Secret    string `json:"secret"`
 	SecretEnc string `json:"-"`
 }
@@ -51,7 +51,7 @@ func (c *Credential) BeforeInsert(db orm.DB) error {
 
 // User is a retrieved and authentiacted user.
 type User struct {
-	Id          int64
+	Id          int64  `json:"-"`
 	Email       string `json:"email"`
 	Sites       []*Site
 	Credentials []*Credential
