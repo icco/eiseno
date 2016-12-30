@@ -332,7 +332,7 @@ func cronHandler(c *gin.Context) {
 	topicName := "my-new-topic"
 
 	// Creates the new topic
-	topic, err := client.CreateTopic(ctx, topicName)
+	topic, err := client.CreateTopic(c, topicName)
 	if err != nil {
 		log.Fatalf("Failed to create topic: %v", err)
 	}
