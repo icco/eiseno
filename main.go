@@ -129,7 +129,7 @@ func init() {
 
 	// If on heroku, set some things
 	if os.Getenv("GIN_MODE") == "release" {
-		oauthConf.RedirectURL = "https://onesie.website/auth"
+		oauthConf.RedirectURL = "https://www.onesie.website/auth"
 
 		u, err := url.Parse(os.Getenv("DATABASE_URL"))
 		if err != nil {
