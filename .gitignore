@@ -25,3 +25,5 @@ _testmain.go
 
 creds.json
 .DS_Store
+.env
+gcreds.json
