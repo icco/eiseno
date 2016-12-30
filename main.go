@@ -350,19 +350,31 @@ func cronHandler(c *gin.Context) {
 }
 
 func main() {
-	secureMiddleware := secure.New(secure.Options{
-		AllowedHosts:          []string{"onesie.website", "www.onesie.website"},
-		SSLRedirect:           true,
-		SSLHost:               "www.onesie.website",
-		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-		STSSeconds:            315360000,
-		STSIncludeSubdomains:  true,
-		STSPreload:            true,
+	secOpts := secure.Options{
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,
 		ContentSecurityPolicy: "default-src 'self'",
-	})
+	}
+
+	// Prod Headers
+	if os.Getenv("GIN_MODE") == "release" {
+		secOpts = secure.Options{
+			AllowedHosts:          []string{"onesie.website", "www.onesie.website"},
+			SSLRedirect:           true,
+			SSLHost:               "www.onesie.website",
+			SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+			STSSeconds:            315360000,
+			STSIncludeSubdomains:  true,
+			STSPreload:            true,
+			FrameDeny:             true,
+			ContentTypeNosniff:    true,
+			BrowserXssFilter:      true,
+			ContentSecurityPolicy: "default-src 'self'",
+		}
+	}
+
+	secureMiddleware := secure.New(secOpts)
 
 	router := gin.Default()
 
