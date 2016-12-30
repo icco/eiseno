@@ -22,6 +22,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/pg.v5"
 	"gopkg.in/pg.v5/orm"
+	"gopkg.in/unrolled/secure.v1"
 
 	_ "github.com/mattes/migrate/driver/postgres"
 )
@@ -349,8 +350,25 @@ func cronHandler(c *gin.Context) {
 }
 
 func main() {
+	secureMiddleware := secure.New(secure.Options{
+		AllowedHosts:          []string{"onesie.website", "www.onesie.website"},
+		SSLRedirect:           true,
+		SSLHost:               "www.onesie.website",
+		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+		STSSeconds:            315360000,
+		STSIncludeSubdomains:  true,
+		STSPreload:            true,
+		FrameDeny:             true,
+		ContentTypeNosniff:    true,
+		BrowserXssFilter:      true,
+		ContentSecurityPolicy: "default-src 'self'",
+	})
+
 	router := gin.Default()
+
+	router.Use(secureFunc)
 	router.Use(sessions.Sessions("eiseno_session", store))
+
 	router.Static("/css", "./static/css")
 	router.Static("/img", "./static/img")
 	router.LoadHTMLGlob("templates/*")
