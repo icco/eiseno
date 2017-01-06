@@ -1,18 +1,23 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/storage"
 	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
 	"github.com/mattes/migrate/migrate"
@@ -294,10 +299,10 @@ func uploadHandler(c *gin.Context) {
 		return
 	}
 
+	// Parse out file
 	r := c.Request
 	r.ParseMultipartForm(32 << 20)
-
-	file, handler, err := r.FormFile("file")
+	file, _, err := r.FormFile("file")
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusOK, gin.H{
@@ -307,14 +312,48 @@ func uploadHandler(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Example code, need to extract tar.gz and expand.
-	name := uuid.NewV4().String() + path.Ext(fh.Filename)
+	// Expand into archive
+	archive, err := gzip.NewReader(file)
+	if err != nil {
+		panic(err)
+	}
+	defer archive.Close()
 
-	ctx := context.Background()
-	w := bookshelf.StorageBucket.Object(name).NewWriter(ctx)
-	w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
-	w.ContentType = fh.Header.Get("Content-Type")
+	// Open google storage client
+	client, err := storage.NewClient(c)
+	if err != nil {
+		panic(err)
+	}
+	bkt := client.Bucket("onesie")
 
+	// Go through file by file
+	tarReader := tar.NewReader(archive)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+
+		path := filepath.Join(domain, header.Name)
+		info := header.FileInfo()
+		if info.IsDir() {
+			continue
+		}
+		w := bkt.Object(path).NewWriter(c)
+		w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+
+		_, err = io.Copy(w, tarReader)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "Success!",
+	})
+	return
 }
 
 // Checks to see if key + secret can upload to domain.
@@ -331,7 +370,7 @@ func validateAuth(key string, secret string, domain string) error {
 	if err != nil {
 		return err
 	}
-	err := db.Model(&site).First()
+	err = db.Model(&site).First()
 	if err != nil {
 		return err
 	}
