@@ -279,8 +279,72 @@ func homeHandler(c *gin.Context) {
 }
 
 func uploadHandler(c *gin.Context) {
-	// Get Headers, validate
+	keyHdr := http.CanonicalHeaderKey("Onesie-Key")
+	secretHdr := http.CanonicalHeaderKey("Onesie-Secret")
+	domainHdr := http.CanonicalHeaderKey("Onesie-Domain")
 
+	authKey := c.Request.Header.Get(keyHdr)
+	authSecret := c.Request.Header.Get(secretHdr)
+	domain := c.Request.Header.Get(domainHdr)
+	err := validateAuth(authKey, authSecret, domain)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"error": err,
+		})
+		return
+	}
+
+	r := c.Request
+	r.ParseMultipartForm(32 << 20)
+
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusOK, gin.H{
+			"error": err,
+		})
+		return
+	}
+	defer file.Close()
+
+	// Example code, need to extract tar.gz and expand.
+	name := uuid.NewV4().String() + path.Ext(fh.Filename)
+
+	ctx := context.Background()
+	w := bookshelf.StorageBucket.Object(name).NewWriter(ctx)
+	w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+	w.ContentType = fh.Header.Get("Content-Type")
+
+}
+
+// Checks to see if key + secret can upload to domain.
+func validateAuth(key string, secret string, domain string) error {
+	site := Site{
+		Domain: domain,
+	}
+	cred := Credential{
+		Id: key,
+	}
+
+	db := pg.Connect(dbOpts)
+	err := db.Model(&cred).First()
+	if err != nil {
+		return err
+	}
+	err := db.Model(&site).First()
+	if err != nil {
+		return err
+	}
+
+	if site.UserId != cred.UserId {
+		return errors.New("Credential not associated with Domain.")
+	}
+
+	if cred.Secret != secret {
+		return errors.New("Credential secret wrong.")
+	}
+
+	return nil
 }
 
 func siteHandler(c *gin.Context) {
