@@ -345,10 +345,12 @@ func uploadHandler(c *gin.Context) {
 		}
 		w := bkt.Object(path).NewWriter(c)
 		w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+		defer w.Close()
 		log.Println(path)
 
 		_, err = io.Copy(w, tarReader)
 		if err != nil {
+			log.Println(err)
 			panic(err)
 		}
 	}
