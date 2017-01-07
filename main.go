@@ -312,6 +312,8 @@ func uploadHandler(c *gin.Context) {
 	}
 	defer file.Close()
 
+	log.Println("File opened.")
+
 	// Expand into archive
 	archive, err := gzip.NewReader(file)
 	if err != nil {
@@ -343,6 +345,7 @@ func uploadHandler(c *gin.Context) {
 		}
 		w := bkt.Object(path).NewWriter(c)
 		w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+		log.Println(path)
 
 		_, err = io.Copy(w, tarReader)
 		if err != nil {
