@@ -37,6 +37,20 @@
         </div>
       </div>
 
+      <h2>How to add to Travis</h2>
+      <p>
+      <pre>
+      deploy:
+        provider: onesie
+        edge:
+          source: icco/dpl
+          branch: onesie
+        key: key-from-above
+        secret: secret-from-above
+        domain: domain.below
+      </pre>
+      </p>
+
       <h2>Existing Domains.</h2>
       <p>For each of these to work, they need to have A records pointing at the following IPs:</p>
       <ul>
