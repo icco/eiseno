@@ -439,6 +439,27 @@ func loginHandler(c *gin.Context) {
 }
 
 func cronHandler(c *gin.Context) {
+	stgClient, err := storage.NewClient(c)
+	if err != nil {
+		panic(err)
+	}
+	bkt := stgClient.Bucket("onesie-configs")
+	w := bkt.Object("domains.txt").NewWriter(c)
+	defer w.Close()
+
+	sites := []Site{}
+	db := pg.Connect(dbOpts)
+	err = db.Model(&sites).Order("id ASC").Select()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, v := range sites {
+		if _, err := fmt.Fprintf(w, "%s\n", v.Domain); err != nil {
+			log.Println(err)
+		}
+	}
+
 	client, err := pubsub.NewClient(c, "940380154622")
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
