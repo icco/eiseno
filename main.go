@@ -451,8 +451,10 @@ func cronHandler(c *gin.Context) {
 		panic(err)
 	}
 	bkt := stgClient.Bucket("onesie-configs")
-	w := bkt.Object("domains.txt").NewWriter(c)
-	defer w.Close()
+	dw := bkt.Object("domains.txt").NewWriter(c)
+	defer dw.Close()
+	hw := bkt.Object("hitch.conf").NewWriter(c)
+	defer hw.Close()
 
 	sites := []Site{}
 	db := pg.Connect(dbOpts)
@@ -461,8 +463,16 @@ func cronHandler(c *gin.Context) {
 		panic(err)
 	}
 
+	if _, err := fmt.Fprintf(dw, "frontend = \"[*]:443\"\nciphers  = \"EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\"\nbackend = \"[::1]:80\"\nwrite-proxy-v2 = on\n\n"); err != nil {
+		log.Println(err)
+	}
+
 	for _, v := range sites {
-		if _, err := fmt.Fprintf(w, "%s\n", v.Domain); err != nil {
+		if _, err := fmt.Fprintf(dw, "%s\n", v.Domain); err != nil {
+			log.Println(err)
+		}
+
+		if _, err := fmt.Fprintf(hw, "pem-file = \"/opt/onesie-configs/hitch/%s.pem\"\n", v.Domain); err != nil {
 			log.Println(err)
 		}
 	}
