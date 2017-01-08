@@ -463,7 +463,7 @@ func cronHandler(c *gin.Context) {
 		panic(err)
 	}
 
-	if _, err := fmt.Fprintf(dw, "frontend = \"[*]:443\"\nciphers  = \"EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\"\nbackend = \"[::1]:80\"\nwrite-proxy-v2 = on\n\n"); err != nil {
+	if _, err := fmt.Fprintf(dw, "frontend = \"[*]:443\"\nciphers  = \"EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\"\nbackend = \"[::1]:80\"\n\n"); err != nil {
 		log.Println(err)
 	}
 
