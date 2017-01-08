@@ -239,6 +239,7 @@ func authHandler(c *gin.Context) {
 		panic(err)
 	}
 
+	log.Printf("Logging in user: %d", user.Id)
 	session.Set("user_id", user.Id)
 	session.Save()
 
@@ -256,6 +257,7 @@ func homeHandler(c *gin.Context) {
 	} else {
 		user_id = v.(int64)
 	}
+	log.Printf("Got from session: %+v -> %+v", v, user_id)
 
 	if user_id < 1 {
 		c.Redirect(http.StatusFound, "/")
@@ -266,7 +268,11 @@ func homeHandler(c *gin.Context) {
 	user := User{
 		Id: user_id,
 	}
-	err := db.Model(&user).Column("user.*", "Sites", "Credentials").First()
+	err := db.Select(&user)
+	if err != nil {
+		panic(err)
+	}
+	err = db.Model(&user).Column("user.*", "Sites", "Credentials").Where("id = ?", user_id).Select()
 	if err != nil {
 		panic(err)
 	}
@@ -278,6 +284,7 @@ func homeHandler(c *gin.Context) {
 		}
 	}
 
+	log.Printf("Logging in user: %v", user)
 	c.HTML(http.StatusOK, "home.html", gin.H{
 		"user": user,
 	})
