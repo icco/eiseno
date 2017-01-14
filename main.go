@@ -11,10 +11,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
@@ -95,6 +97,10 @@ var dbOpts *pg.Options
 var oauthConf *oauth2.Config
 var state string
 var store = sessions.NewCookieStore([]byte("secret"))
+var validIPs = []net.IP{
+	net.ParseIP("104.198.128.22"),
+	net.ParseIP("104.154.142.2"),
+}
 
 func randToken() string {
 	b := make([]byte, 32)
@@ -475,6 +481,17 @@ func cronHandler(c *gin.Context) {
 		if _, err := fmt.Fprintf(hw, "pem-file = \"/opt/onesie-configs/hitch/%s.pem\"\n", v.Domain); err != nil {
 			log.Println(err)
 		}
+
+		ips, err := net.LookupIP(v.Domain)
+		sort.Sort(ips)
+		sort.Sort(validIPs)
+		equal := true
+		for i, ip := range ips {
+			if !ip.Equal(validIPs[i]) {
+				equal = false
+			}
+		}
+
 	}
 
 	client, err := pubsub.NewClient(c, "940380154622")
