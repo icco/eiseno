@@ -34,6 +34,18 @@ import (
 	_ "github.com/mattes/migrate/driver/postgres"
 )
 
+type ByIP []net.IP
+
+func (s ByIP) Len() int {
+	return len(s)
+}
+func (s ByIP) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByIP) Less(i, j int) bool {
+	return s[i].String() < s[j].String()
+}
+
 // Credentials which stores google ids.
 type GoogleCredentials struct {
 	Cid     string `json:"cid"`
@@ -473,6 +485,9 @@ func cronHandler(c *gin.Context) {
 		log.Println(err)
 	}
 
+	sort.Sort(ByIP(validIPs))
+	log.Printf("Valid IPs: %+v", validIPs)
+
 	for _, v := range sites {
 		if _, err := fmt.Fprintf(dw, "%s\n", v.Domain); err != nil {
 			log.Println(err)
@@ -483,8 +498,10 @@ func cronHandler(c *gin.Context) {
 		}
 
 		ips, err := net.LookupIP(v.Domain)
-		sort.Sort(ips)
-		sort.Sort(validIPs)
+		if err != nil {
+			log.Println(err)
+		}
+		sort.Sort(ByIP(ips))
 		equal := true
 		for i, ip := range ips {
 			if !ip.Equal(validIPs[i]) {
@@ -492,6 +509,7 @@ func cronHandler(c *gin.Context) {
 			}
 		}
 
+		log.Printf("%s: %v: %+v", v.Domain, equal, ips)
 	}
 
 	client, err := pubsub.NewClient(c, "940380154622")
