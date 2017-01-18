@@ -502,7 +502,7 @@ func cronHandler(c *gin.Context) {
 		log.Printf("Spawning Go Routine for DNS Validation.")
 		sites := []Site{}
 		db := pg.Connect(dbOpts)
-		err = db.Model(&sites).Order("id ASC").Select()
+		err := db.Model(&sites).Order("id ASC").Select()
 		if err != nil {
 			log.Printf("Error querying database: %+v", err)
 		}
@@ -568,6 +568,8 @@ func main() {
 	// Prod Headers
 	if os.Getenv("GIN_MODE") != "release" {
 		secOpts.IsDevelopment = true
+
+		pg.SetQueryLogger(log.New(os.Stdout, "DB: ", log.LstdFlags))
 	}
 
 	secureMiddleware := secure.New(secOpts)
