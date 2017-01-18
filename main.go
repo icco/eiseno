@@ -525,7 +525,7 @@ func cronHandler(c *gin.Context) {
 
 			log.Printf("%s: %v: %+v", v.Domain, equal, ips)
 			v.Dns = equal
-			db.Update(v)
+			db.Update(&v)
 			if err != nil {
 				log.Printf("Error saving to database: %+v", err)
 			}
