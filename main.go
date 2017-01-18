@@ -176,7 +176,7 @@ func init() {
 	db := pg.Connect(dbOpts)
 	err = createSchema(db)
 	if err != nil {
-		panic(err)
+		log.Panicf("Error migrating database: %+v", err)
 	}
 	log.Print("Database Setup.")
 }
@@ -229,22 +229,22 @@ func authHandler(c *gin.Context) {
 	}
 
 	client := oauthConf.Client(oauth2.NoContext, tok)
-	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	userdata, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	defer email.Body.Close()
-	data, err := ioutil.ReadAll(email.Body)
+	defer userdata.Body.Close()
+	data, err := ioutil.ReadAll(userdata.Body)
 	if err != nil {
-		panic(err)
+		log.Panicf("Error reading oauth data: %+v", err)
 	}
 	log.Println("data: ", string(data))
 
 	var user *User
 	err = json.Unmarshal(data, &user)
 	if err != nil {
-		panic(err)
+		log.Panicf("Error unmarshalling json: %+v", err)
 	}
 
 	db := pg.Connect(dbOpts)
@@ -254,7 +254,7 @@ func authHandler(c *gin.Context) {
 		Returning("id").
 		SelectOrInsert()
 	if err != nil {
-		panic(err)
+		log.Panicf("Error querying database: %+v", err)
 	}
 
 	log.Printf("Logging in user: %d", user.Id)
@@ -288,17 +288,16 @@ func homeHandler(c *gin.Context) {
 	}
 	err := db.Select(&user)
 	if err != nil {
-		panic(err)
+		log.Panicf("Error querying database: %+v", err)
 	}
 	err = db.Model(&user).Column("user.*", "Sites", "Credentials").Where("id = ?", user_id).Select()
 	if err != nil {
-		panic(err)
+		log.Panicf("Error querying database: %+v", err)
 	}
 
 	if len(user.Credentials) == 0 {
-		err = user.GenerateCred()
-		if err != nil {
-			panic(err)
+		if user.GenerateCred() != nil {
+			log.Printf("Error generating user creds: %+v", err)
 		}
 	}
 
@@ -342,14 +341,14 @@ func uploadHandler(c *gin.Context) {
 	// Expand into archive
 	archive, err := gzip.NewReader(file)
 	if err != nil {
-		panic(err)
+		log.Panicf("Error creating gzip reader: %+v", err)
 	}
 	defer archive.Close()
 
 	// Open google storage client
 	client, err := storage.NewClient(c)
 	if err != nil {
-		panic(err)
+		log.Panicf("Error connecting to Google Storage: %+v", err)
 	}
 	bkt := client.Bucket("onesie")
 
@@ -360,7 +359,7 @@ func uploadHandler(c *gin.Context) {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			panic(err)
+			log.Panicf("Error reading tar: %+v", err)
 		}
 
 		path := filepath.Join(domain, header.Name)
@@ -375,8 +374,7 @@ func uploadHandler(c *gin.Context) {
 
 		_, err = io.Copy(w, tarReader)
 		if err != nil {
-			log.Println(err)
-			panic(err)
+			log.Printf("Error writing data to GCS: %+v", err)
 		}
 	}
 
@@ -438,7 +436,7 @@ func siteHandler(c *gin.Context) {
 	}
 	err := db.Select(&user)
 	if err != nil {
-		panic(err)
+		log.Printf("Error querying database: %+v", err)
 	}
 
 	site := Site{
@@ -449,7 +447,7 @@ func siteHandler(c *gin.Context) {
 	}
 	err = db.Insert(&site)
 	if err != nil {
-		panic(err)
+		log.Printf("Error inserting into database: %+v", err)
 	}
 
 	c.Redirect(http.StatusFound, "/home")
@@ -464,53 +462,75 @@ func loginHandler(c *gin.Context) {
 }
 
 func cronHandler(c *gin.Context) {
-	stgClient, err := storage.NewClient(c)
-	if err != nil {
-		panic(err)
-	}
-	bkt := stgClient.Bucket("onesie-configs")
-	dw := bkt.Object("domains.txt").NewWriter(c)
-	defer dw.Close()
-	hw := bkt.Object("hitch.conf").NewWriter(c)
-	defer hw.Close()
 
-	sites := []Site{}
-	db := pg.Connect(dbOpts)
-	err = db.Model(&sites).Order("id ASC").Select()
-	if err != nil {
-		panic(err)
-	}
-
-	if _, err := fmt.Fprintf(hw, "frontend = \"[*]:443\"\nciphers  = \"EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\"\nbackend = \"[::1]:80\"\n\n"); err != nil {
-		log.Println(err)
-	}
-
-	sort.Sort(ByIP(validIPs))
-	log.Printf("Valid IPs: %+v", validIPs)
-
-	for _, v := range sites {
-		if _, err := fmt.Fprintf(dw, "%s\n", v.Domain); err != nil {
-			log.Println(err)
-		}
-
-		if _, err := fmt.Fprintf(hw, "pem-file = \"/opt/onesie-configs/hitch/%s.pem\"\n", v.Domain); err != nil {
-			log.Println(err)
-		}
-
-		ips, err := net.LookupIP(v.Domain)
+	// Write out configs for onesie server.
+	go func(c *gin.Context) {
+		log.Printf("Spawning Go Routine for Onesie Config Writer.")
+		stgClient, err := storage.NewClient(c)
 		if err != nil {
+			log.Panicf("Error creating storage client: %+v")
+		}
+		bkt := stgClient.Bucket("onesie-configs")
+		dw := bkt.Object("domains.txt").NewWriter(c)
+		defer dw.Close()
+		hw := bkt.Object("hitch.conf").NewWriter(c)
+		defer hw.Close()
+
+		sites := []Site{}
+		db := pg.Connect(dbOpts)
+		err = db.Model(&sites).Where("dns = true").Order("domain ASC").Select()
+		if err != nil {
+			log.Printf("Error querying database: %+v", err)
+		}
+
+		if _, err := fmt.Fprintf(hw, "frontend = \"[*]:443\"\nciphers  = \"EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\"\nbackend = \"[::1]:80\"\n\n"); err != nil {
 			log.Println(err)
 		}
-		sort.Sort(ByIP(ips))
-		equal := true
-		for i, ip := range ips {
-			if !ip.Equal(validIPs[i]) {
-				equal = false
+		for _, v := range sites {
+			if _, err := fmt.Fprintf(dw, "%s\n", v.Domain); err != nil {
+				log.Println(err)
+			}
+
+			if _, err := fmt.Fprintf(hw, "pem-file = \"/opt/onesie-configs/hitch/%s.pem\"\n", v.Domain); err != nil {
+				log.Println(err)
 			}
 		}
+	}(c)
 
-		log.Printf("%s: %v: %+v", v.Domain, equal, ips)
-	}
+	// Do DNS Validation
+	go func(c *gin.Context) {
+		log.Printf("Spawning Go Routine for DNS Validation.")
+		sites := []Site{}
+		db := pg.Connect(dbOpts)
+		err = db.Model(&sites).Order("id ASC").Select()
+		if err != nil {
+			log.Printf("Error querying database: %+v", err)
+		}
+
+		sort.Sort(ByIP(validIPs))
+		log.Printf("Valid IPs: %+v", validIPs)
+
+		for _, v := range sites {
+			ips, err := net.LookupIP(v.Domain)
+			if err != nil {
+				log.Println(err)
+			}
+			sort.Sort(ByIP(ips))
+			equal := true
+			for i, ip := range ips {
+				if !ip.Equal(validIPs[i]) {
+					equal = false
+				}
+			}
+
+			log.Printf("%s: %v: %+v", v.Domain, equal, ips)
+			v.Dns = equal
+			db.Update(v)
+			if err != nil {
+				log.Printf("Error saving to database: %+v", err)
+			}
+		}
+	}(c)
 
 	client, err := pubsub.NewClient(c, "940380154622")
 	if err != nil {
