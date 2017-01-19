@@ -318,7 +318,8 @@ func uploadHandler(c *gin.Context) {
 	domain := c.Request.Header.Get(domainHdr)
 	err := validateAuth(authKey, authSecret, domain)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
+		log.Printf("Error uploading: %+v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err,
 		})
 		return
@@ -329,8 +330,8 @@ func uploadHandler(c *gin.Context) {
 	r.ParseMultipartForm(32 << 20)
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		log.Println(err)
-		c.JSON(http.StatusOK, gin.H{
+		log.Printf("Error parsing: %+v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err,
 		})
 		return
