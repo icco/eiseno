@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
@@ -54,10 +55,11 @@ type GoogleCredentials struct {
 }
 
 type Credential struct {
-	Id        string `json:"id"`
-	UserId    int64  `json:"-"`
-	Secret    string `json:"secret"`
-	SecretEnc string `json:"-"`
+	Id        string    `json:"id"`
+	UserId    int64     `json:"-"`
+	Secret    string    `json:"secret"`
+	SecretEnc string    `json:"-"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func (cred *Credential) IsValidCred() error {
@@ -77,6 +79,7 @@ type User struct {
 	Email       string `json:"email"`
 	Sites       []*Site
 	Credentials []*Credential
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (u User) String() string {
@@ -94,11 +97,12 @@ func (u *User) GenerateCred() error {
 }
 
 type Site struct {
-	Id     int64
-	Domain string
-	UserId int64
-	Dns    bool
-	Ssl    bool
+	Id        int64
+	Domain    string
+	UserId    int64
+	Dns       bool
+	Ssl       bool
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func (s Site) String() string {
