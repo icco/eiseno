@@ -7,6 +7,7 @@ The admin for [Onesie](https://www.onesie.website). You can view the serving cod
  - To generate a new migration:
 
 ```
+go get -u github.com/mattes/migrate
 migrate -url postgres://localhost/eiseno?sslmode=disable -path ./db/migrations create migration_file_xyz
 ```
 
@@ -21,6 +22,7 @@ godep get -v ./...
 
 ```
 rm -rf vendor GoDeps
+go get -u github.com/tools/godep
 godep save -d -v ./..
 git add vendor GoDeps
 ```
