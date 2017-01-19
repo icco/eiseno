@@ -440,7 +440,7 @@ func siteHandler(c *gin.Context) {
 	}
 
 	site := Site{
-		Domain: c.PostForm("domain"),
+		Domain: strings.TrimSpace(c.PostForm("domain")),
 		UserId: user.Id,
 		Ssl:    false,
 		Dns:    false,
@@ -524,6 +524,7 @@ func cronHandler(c *gin.Context) {
 			}
 
 			log.Printf("%s: %v: %+v", v.Domain, equal, ips)
+			v.Domain = strings.TrimSpace(v.Domain)
 			v.Dns = equal
 			db.Update(&v)
 			if err != nil {
