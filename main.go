@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
