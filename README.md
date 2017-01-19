@@ -7,7 +7,7 @@ The admin for [Onesie](https://www.onesie.website). You can view the serving cod
  - To generate a new migration:
 
 ```
-migrate -url postgres://localhost/eiseno -path ./db/migrations create migration_file_xyz
+migrate -url postgres://localhost/eiseno?sslmode=disable -path ./db/migrations create migration_file_xyz
 ```
 
  - To Install Deps
