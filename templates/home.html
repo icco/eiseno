@@ -41,7 +41,12 @@
         </div>
       </div>
 
-      <h2>How to add to Travis</h2>
+      <h2>How to upload</h2>
+
+      <h3>Use Travis-CI.org</h3>
+      <p>
+      Add the following blob to your .travis.yml
+      </p>
       <p>
       <pre>
       deploy:
@@ -53,6 +58,15 @@
         secret: secret-from-above
         domain: domain.below
       </pre>
+      </p>
+
+      <h3>Upload Manually</h3>
+      <p>
+      Or if you don't use Travis, you can do it by hand.
+      <ul>
+        <li>In the directory you want to upload: <pre>tar -zvcf out.tgz --exclude .git .</pre></li>
+        <li><pre>curl https://www.onesie.website/upload -X POST -H Onesie-Key:key-from-above -H Onesie-Secret:secret-from-above -H Onesie-Domain:domain-below -F "file=@out.tgz"</pre></li>
+      </ul>
       </p>
 
       <h2>Existing Domains.</h2>
