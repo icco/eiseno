@@ -27,3 +27,4 @@ creds.json
 .DS_Store
 .env
 gcreds.json
+main
