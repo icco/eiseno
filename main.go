@@ -410,7 +410,7 @@ func validateAuth(key string, secret string, domain string) error {
 	}
 
 	if site.UserId != cred.UserId {
-		return errors.New(fmt.Sprintf("Credential (%v) not associated with Domain (%d != %d).", cred.Id, site.UserId, cred.UserId))
+		return errors.New(fmt.Sprintf("Credential (%v) not associated with Domain (%v).", cred.Id, site.Domain))
 	}
 
 	if cred.Secret != secret {
