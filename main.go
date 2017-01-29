@@ -317,9 +317,9 @@ func uploadHandler(c *gin.Context) {
 	secretHdr := http.CanonicalHeaderKey("Onesie-Secret")
 	domainHdr := http.CanonicalHeaderKey("Onesie-Domain")
 
-	authKey := c.Request.Header.Get(keyHdr)
-	authSecret := c.Request.Header.Get(secretHdr)
-	domain := c.Request.Header.Get(domainHdr)
+	authKey := strings.TrimSpace(c.Request.Header.Get(keyHdr))
+	authSecret := strings.TrimSpace(c.Request.Header.Get(secretHdr))
+	domain := strings.TrimSpace(c.Request.Header.Get(domainHdr))
 	err := validateAuth(authKey, authSecret, domain)
 	if err != nil {
 		log.Printf("Error uploading: %+v", err)
