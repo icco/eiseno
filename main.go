@@ -394,6 +394,7 @@ func uploadHandler(c *gin.Context) {
 
 // Checks to see if key + secret can upload to domain.
 func validateAuth(key string, secret string, domain string) error {
+	log.Printf("Looking for '%+v' with '%+v' + '%+v'", domain, key, secret)
 	site := Site{
 		Domain: domain,
 	}
@@ -409,7 +410,7 @@ func validateAuth(key string, secret string, domain string) error {
 	}
 	err = db.Select(&site)
 	if err != nil {
-		log.Printf("Error getting site: %+v", err)
+		log.Printf("Error getting site (%+v): %+v", site.Domain, err)
 		return err
 	}
 
