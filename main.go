@@ -410,11 +410,11 @@ func validateAuth(key string, secret string, domain string) error {
 	}
 
 	if site.UserId != cred.UserId {
-		return errors.New("Credential not associated with Domain.")
+		return errors.New("Credential (%v) not associated with Domain (%d != %d).", cred.Id, site.UserId, cred.UserId)
 	}
 
 	if cred.Secret != secret {
-		return errors.New("Credential secret wrong.")
+		return errors.New("Credential secret wrong (%v).", cred.Id)
 	}
 
 	return nil
