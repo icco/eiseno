@@ -325,6 +325,7 @@ func uploadHandler(c *gin.Context) {
 		log.Printf("Error uploading: %+v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
+			"where": "auth.validate",
 		})
 		return
 	}
@@ -337,6 +338,7 @@ func uploadHandler(c *gin.Context) {
 		log.Printf("Error parsing: %+v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
+			"where": "file.parse",
 		})
 		return
 	}
@@ -402,10 +404,12 @@ func validateAuth(key string, secret string, domain string) error {
 	db := pg.Connect(dbOpts)
 	err := db.Select(&cred)
 	if err != nil {
+		log.Printf("Error getting cred: %+v", err)
 		return err
 	}
 	err = db.Select(&site)
 	if err != nil {
+		log.Printf("Error getting site: %+v", err)
 		return err
 	}
 
