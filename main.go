@@ -408,7 +408,10 @@ func validateAuth(key string, secret string, domain string) error {
 		log.Printf("Error getting cred: %+v", err)
 		return err
 	}
-	err = db.Select(&site)
+	err = db.Model(&site).
+		Column("sites.*").
+		Where("sites.domain = ?", site.Domain).
+		Select()
 	if err != nil {
 		log.Printf("Error getting site (%+v): %+v", site.Domain, err)
 		return err
