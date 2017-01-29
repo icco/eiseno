@@ -324,7 +324,7 @@ func uploadHandler(c *gin.Context) {
 	if err != nil {
 		log.Printf("Error uploading: %+v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err,
+			"error": err.Error(),
 		})
 		return
 	}
@@ -336,7 +336,7 @@ func uploadHandler(c *gin.Context) {
 	if err != nil {
 		log.Printf("Error parsing: %+v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err,
+			"error": err.Error(),
 		})
 		return
 	}
