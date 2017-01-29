@@ -400,11 +400,11 @@ func validateAuth(key string, secret string, domain string) error {
 	}
 
 	db := pg.Connect(dbOpts)
-	err := db.Model(&cred).First()
+	err := db.Select(&cred)
 	if err != nil {
 		return err
 	}
-	err = db.Model(&site).First()
+	err = db.Select(&site)
 	if err != nil {
 		return err
 	}
