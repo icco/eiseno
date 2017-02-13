@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"filepath"
 	"fmt"
 	"io"
 	"io/ioutil"
