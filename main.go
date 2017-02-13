@@ -7,10 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"filepath"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -377,6 +379,9 @@ func uploadHandler(c *gin.Context) {
 		}
 		w := bkt.Object(path).NewWriter(c)
 		w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+		if filepath.Ext(path) != "" {
+			w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
+		}
 		defer w.Close()
 		log.Println(path)
 
