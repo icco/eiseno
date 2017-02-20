@@ -510,6 +510,13 @@ func cronHandler(c *gin.Context) {
 				log.Println(err)
 			}
 		}
+
+		err = bkt.Object("lock").Delete(ctx)
+		if err != nil {
+			if err != storage.ErrObjectNotExist {
+				log.Printf("Error deleting lock: %+v", err)
+			}
+		}
 	}(c)
 
 	// Do DNS Validation
