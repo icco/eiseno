@@ -511,7 +511,7 @@ func cronHandler(c *gin.Context) {
 			}
 		}
 
-		err = bkt.Object("lock").Delete(ctx)
+		err = bkt.Object("lock").Delete(c)
 		if err != nil {
 			if err != storage.ErrObjectNotExist {
 				log.Printf("Error deleting lock: %+v", err)
