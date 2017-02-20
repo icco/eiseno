@@ -23,6 +23,6 @@ godep get -v ./...
 ```
 rm -rf vendor GoDeps
 go get -u github.com/tools/godep
-godep save -d -v ./..
+godep save -d -v ./...
 git add vendor GoDeps
 ```
