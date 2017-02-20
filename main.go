@@ -35,6 +35,7 @@ import (
 	"gopkg.in/unrolled/secure.v1"
 
 	_ "github.com/mattes/migrate/driver/postgres"
+	_ "net/http/pprof"
 )
 
 type ByIP []net.IP
