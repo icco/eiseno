@@ -545,6 +545,10 @@ func cronHandler(c *gin.Context) {
 				}
 			}
 
+			if equal && (len(validIPs) != len(ips)) {
+				equal = false
+			}
+
 			log.Printf("%s: %v: %+v", v.Domain, equal, ips)
 			v.Domain = strings.TrimSpace(v.Domain)
 			v.Dns = equal
