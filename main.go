@@ -540,14 +540,15 @@ func cronHandler(c *gin.Context) {
 			}
 			sort.Sort(ByIP(ips))
 			equal := true
-			for i, ip := range ips {
-				if !ip.Equal(validIPs[i]) {
-					equal = false
-				}
-			}
 
-			if equal && (len(validIPs) != len(ips)) {
+			if len(validIPs) != len(ips) {
 				equal = false
+			} else {
+				for i, ip := range ips {
+					if !ip.Equal(validIPs[i]) {
+						equal = false
+					}
+				}
 			}
 
 			log.Printf("%s: %v: %+v", v.Domain, equal, ips)
