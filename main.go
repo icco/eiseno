@@ -373,21 +373,22 @@ func uploadHandler(c *gin.Context) {
 		}
 
 		path := filepath.Join(domain, header.Name)
-		info := header.FileInfo()
-		if info.IsDir() {
+		switch header.Typeflag {
+		case tar.TypeDir:
 			continue
-		}
-		w := bkt.Object(path).NewWriter(c)
-		w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
-		if filepath.Ext(path) != "" {
-			w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
-		}
-		defer w.Close()
-		log.Println(path)
-
-		_, err = io.Copy(w, tarReader)
-		if err != nil {
-			log.Printf("Error writing data to GCS: %+v", err)
+		case tar.TypeReg:
+			w := bkt.Object(path).NewWriter(c)
+			defer w.Close()
+			w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+			if filepath.Ext(path) != "" {
+				w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
+			}
+			_, err = io.Copy(w, tarReader)
+			if err != nil {
+				log.Printf("Error writing data to GCS: %+v", err)
+			}
+		default:
+			log.Printf("Unable to figure out type: %v (%s)", header.Typeflag, path)
 		}
 	}
 
