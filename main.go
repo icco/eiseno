@@ -364,6 +364,7 @@ func uploadHandler(c *gin.Context) {
 
 	// Go through file by file
 	tarReader := tar.NewReader(archive)
+	buf := make([]byte, 160)
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -383,10 +384,11 @@ func uploadHandler(c *gin.Context) {
 			if filepath.Ext(path) != "" {
 				w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
 			}
-			_, err = io.Copy(w, tarReader)
+			wrtn, err := io.CopyBuffer(w, tarReader, buf)
 			if err != nil {
 				log.Printf("Error writing data to GCS: %+v", err)
 			}
+			log.Printf("Wrote %n bytes to %s", wrtn, path)
 		default:
 			log.Printf("Unable to figure out type: %v (%s)", header.Typeflag, path)
 		}
