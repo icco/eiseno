@@ -355,45 +355,47 @@ func uploadHandler(c *gin.Context) {
 	}
 	defer archive.Close()
 
-	// Open google storage client
-	client, err := storage.NewClient(c)
-	if err != nil {
-		log.Panicf("Error connecting to Google Storage: %+v", err)
-	}
-	defer client.Close()
-	bkt := client.Bucket("onesie")
-
-	// Go through file by file
-	tarReader := tar.NewReader(archive)
-	buf := make([]byte, 160)
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Panicf("Error reading tar: %+v", err)
+	go func(c *gin.Context, archive *gzip.Reader) {
+		// Open google storage client
+		client, err := storage.NewClient(c)
+		if err != nil {
+			log.Panicf("Error connecting to Google Storage: %+v", err)
 		}
+		defer client.Close()
+		bkt := client.Bucket("onesie")
 
-		path := filepath.Join(domain, header.Name)
-		switch header.Typeflag {
-		case tar.TypeDir:
-			continue
-		case tar.TypeReg:
-			w := bkt.Object(path).NewWriter(c)
-			defer w.Close()
-			w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
-			if filepath.Ext(path) != "" {
-				w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
+		// Go through file by file
+		tarReader := tar.NewReader(archive)
+		buf := make([]byte, 160)
+		for {
+			header, err := tarReader.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				log.Panicf("Error reading tar: %+v", err)
 			}
-			wrtn, err := io.CopyBuffer(w, tarReader, buf)
-			if err != nil {
-				log.Printf("Error writing data to GCS: %+v", err)
+
+			path := filepath.Join(domain, header.Name)
+			switch header.Typeflag {
+			case tar.TypeDir:
+				continue
+			case tar.TypeReg:
+				w := bkt.Object(path).NewWriter(c)
+				defer w.Close()
+				w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+				if filepath.Ext(path) != "" {
+					w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
+				}
+				wrtn, err := io.CopyBuffer(w, tarReader, buf)
+				if err != nil {
+					log.Printf("Error writing data to GCS: %+v", err)
+				}
+				log.Printf("Wrote %v bytes to %s", wrtn, path)
+			default:
+				log.Printf("Unable to figure out type: %v (%s)", header.Typeflag, path)
 			}
-			log.Printf("Wrote %v bytes to %s", wrtn, path)
-		default:
-			log.Printf("Unable to figure out type: %v (%s)", header.Typeflag, path)
 		}
-	}
+	}(c, archive)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "Success!",
