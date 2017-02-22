@@ -360,6 +360,7 @@ func uploadHandler(c *gin.Context) {
 	if err != nil {
 		log.Panicf("Error connecting to Google Storage: %+v", err)
 	}
+	defer client.Close()
 	bkt := client.Bucket("onesie")
 
 	// Go through file by file
@@ -388,7 +389,7 @@ func uploadHandler(c *gin.Context) {
 			if err != nil {
 				log.Printf("Error writing data to GCS: %+v", err)
 			}
-			log.Printf("Wrote %n bytes to %s", wrtn, path)
+			log.Printf("Wrote %v bytes to %s", wrtn, path)
 		default:
 			log.Printf("Unable to figure out type: %v (%s)", header.Typeflag, path)
 		}
@@ -489,6 +490,7 @@ func cronHandler(c *gin.Context) {
 		if err != nil {
 			log.Panicf("Error creating storage client: %+v")
 		}
+		defer stgClient.Close()
 		bkt := stgClient.Bucket("onesie-configs")
 		dw := bkt.Object("domains.txt").NewWriter(c)
 		defer dw.Close()
@@ -568,6 +570,7 @@ func cronHandler(c *gin.Context) {
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
+	defer client.Close()
 
 	// The name for the update topic
 	topicName := "onesie-updates"
