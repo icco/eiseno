@@ -508,7 +508,7 @@ func cronHandler(c *gin.Context) {
 
 		hitch_config := `
 frontend = "[*]:443"
-ciphers = "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
+ciphers = "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS"
 backend = "[::1]:6081"
 write-proxy-v2 = off
 
