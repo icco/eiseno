@@ -506,7 +506,15 @@ func cronHandler(c *gin.Context) {
 			log.Printf("Error querying database: %+v", err)
 		}
 
-		if _, err := fmt.Fprintf(hw, "frontend = \"[*]:443\"\nciphers  = \"EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH\"\nbackend = \"[::1]:80\"\n\n"); err != nil {
+		hitch_config := `
+frontend = "[*]:443"
+ciphers = "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
+backend = "[::1]:6081"
+write-proxy-v2 = off
+
+`
+
+		if _, err := fmt.Fprintf(hw, hitch_config); err != nil {
 			log.Println(err)
 		}
 		for _, v := range sites {
