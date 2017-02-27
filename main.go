@@ -346,6 +346,8 @@ func uploadHandler(c *gin.Context) {
 	}
 	defer file.Close()
 
+	// TODO: Copy file to onesie-configs
+
 	log.Println("File opened.")
 
 	// Expand into archive
