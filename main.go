@@ -375,9 +375,11 @@ func uploadHandler(c *gin.Context) {
 	if _, err = io.Copy(w, br); err != nil {
 		log.Fatal(err)
 	}
+	br.Seek(0, 0)
+	bufr := bufio.NewReader(br)
 
 	// Expand into archive
-	archive, err := gzip.NewReader(br)
+	archive, err := gzip.NewReader(bufr)
 	if err != nil {
 		log.Panicf("Error creating gzip reader: %+v", err)
 	}
