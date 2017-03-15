@@ -365,6 +365,17 @@ func uploadHandler(c *gin.Context) {
 	defer client.Close()
 	bkt := client.Bucket("onesie")
 
+	path := filepath.Join("backups.onesie.website", domain, fmt.Sprintf("%s.tgz", time.Now().Unix()))
+	w := bkt.Object(path).NewWriter(c)
+	defer w.Close()
+	w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+	if filepath.Ext(path) != "" {
+		w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
+	}
+	if _, err = io.Copy(w, file); err != nil {
+		log.Fatal(err)
+	}
+
 	// Go through file by file
 	tarReader := tar.NewReader(archive)
 	buf := make([]byte, 160)
