@@ -2,6 +2,8 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
+	"bytes"
 	"compress/gzip"
 	"crypto/rand"
 	"encoding/base64"
@@ -345,17 +347,14 @@ func uploadHandler(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-
-	// TODO: Copy file to onesie-configs
+	var b bytes.Buffer
+	bw := bufio.NewWriter(&b)
+	if _, err := io.Copy(bw, file); err != nil {
+		log.Fatal(err)
+	}
+	br := bytes.NewReader(b.Bytes())
 
 	log.Println("File opened.")
-
-	// Expand into archive
-	archive, err := gzip.NewReader(file)
-	if err != nil {
-		log.Panicf("Error creating gzip reader: %+v", err)
-	}
-	defer archive.Close()
 
 	// Open google storage client
 	client, err := storage.NewClient(c)
@@ -365,6 +364,7 @@ func uploadHandler(c *gin.Context) {
 	defer client.Close()
 	bkt := client.Bucket("onesie")
 
+	// Backup tgz
 	path := filepath.Join("backups.onesie.website", domain, fmt.Sprintf("%s.tgz", time.Now().Unix()))
 	w := bkt.Object(path).NewWriter(c)
 	defer w.Close()
@@ -372,9 +372,16 @@ func uploadHandler(c *gin.Context) {
 	if filepath.Ext(path) != "" {
 		w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
 	}
-	if _, err = io.Copy(w, file); err != nil {
+	if _, err = io.Copy(w, br); err != nil {
 		log.Fatal(err)
 	}
+
+	// Expand into archive
+	archive, err := gzip.NewReader(br)
+	if err != nil {
+		log.Panicf("Error creating gzip reader: %+v", err)
+	}
+	defer archive.Close()
 
 	// Go through file by file
 	tarReader := tar.NewReader(archive)
