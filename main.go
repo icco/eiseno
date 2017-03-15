@@ -365,7 +365,7 @@ func uploadHandler(c *gin.Context) {
 	bkt := client.Bucket("onesie")
 
 	// Backup tgz
-	path := filepath.Join("backups.onesie.website", domain, fmt.Sprintf("%s.tgz", time.Now().Unix()))
+	path := filepath.Join("backups.onesie.website", domain, fmt.Sprintf("%d.tgz", time.Now().Unix()))
 	w := bkt.Object(path).NewWriter(c)
 	defer w.Close()
 	w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
