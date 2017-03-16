@@ -378,6 +378,17 @@ func uploadHandler(c *gin.Context) {
 	br.Seek(0, 0)
 	bufr := bufio.NewReader(br)
 
+	// Post message
+	topicName := "onesie-updates"
+	topic := client.Topic(topicName)
+	msgIDs, err := topic.Publish(c, &pubsub.Message{
+		Data: []byte("deploy"),
+	})
+	if err != nil {
+		log.Fatal("Couldn't publish: %+v", err)
+	}
+	log.Printf("Published a message with a message ID: %s\n", msgIDs[0])
+
 	// Expand into archive
 	archive, err := gzip.NewReader(bufr)
 	if err != nil {
