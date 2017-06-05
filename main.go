@@ -381,8 +381,13 @@ func uploadHandler(c *gin.Context) {
 	bufr := bufio.NewReader(br)
 
 	// Post message
+	tclient, err := pubsub.NewClient(c, "940380154622")
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+	defer client.Close()
 	topicName := "onesie-updates"
-	topic := client.Topic(topicName)
+	topic := tclient.Topic(topicName)
 	msgIDs, err := topic.Publish(c, &pubsub.Message{
 		Data: []byte("deploy"),
 	})
