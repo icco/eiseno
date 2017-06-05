@@ -2,7 +2,11 @@ package pg
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net"
+	"net/url"
+	"strings"
 	"time"
 
 	"gopkg.in/pg.v5/internal/pool"
@@ -46,13 +50,17 @@ type Options struct {
 	// Maximum number of socket connections.
 	// Default is 20 connections.
 	PoolSize int
-	// Amount of time client waits for free connection if all
+	// Time for which client waits for free connection if all
 	// connections are busy before returning an error.
 	// Default is 5 seconds.
 	PoolTimeout time.Duration
-	// Amount of time after which client closes idle connections.
+	// Time after which client closes idle connections.
 	// Default is to not close idle connections.
 	IdleTimeout time.Duration
+	// Connection age at which client retires (closes) the connection.
+	// Primarily useful with proxies like HAProxy.
+	// Default is to not close aged connections.
+	MaxAge time.Duration
 	// Frequency of idle checks.
 	// Default is 1 minute.
 	IdleCheckFrequency time.Duration
@@ -99,6 +107,75 @@ func (opt *Options) init() {
 	}
 }
 
+// ParseURL parses an URL into options that can be used to connect to PostgreSQL.
+func ParseURL(sURL string) (*Options, error) {
+	parsedUrl, err := url.Parse(sURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// scheme
+	if parsedUrl.Scheme != "postgres" {
+		return nil, errors.New("pg: invalid scheme: " + parsedUrl.Scheme)
+	}
+
+	// host and port
+	options := &Options{
+		Addr: parsedUrl.Host,
+	}
+	if !strings.Contains(options.Addr, ":") {
+		options.Addr = options.Addr + ":5432"
+	}
+
+	// username and password
+	if parsedUrl.User != nil {
+		options.User = parsedUrl.User.Username()
+
+		if password, ok := parsedUrl.User.Password(); ok {
+			options.Password = password
+		}
+	}
+
+	if options.User == "" {
+		options.User = "postgres"
+	}
+
+	// database
+	if len(strings.Trim(parsedUrl.Path, "/")) > 0 {
+		options.Database = parsedUrl.Path[1:]
+	} else {
+		return nil, errors.New("pg: database name not provided")
+	}
+
+	// ssl mode
+	query, err := url.ParseQuery(parsedUrl.RawQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	if sslMode, ok := query["sslmode"]; ok && len(sslMode) > 0 {
+		switch sslMode[0] {
+		case "allow":
+			fallthrough
+		case "prefer":
+			options.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		case "disable":
+			options.TLSConfig = nil
+		default:
+			return nil, errors.New(fmt.Sprintf("pg: sslmode '%v' is not supported", sslMode[0]))
+		}
+	} else {
+		options.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	delete(query, "sslmode")
+	if len(query) > 0 {
+		return nil, errors.New("pg: options other than 'sslmode' are not supported")
+	}
+
+	return options, nil
+}
+
 func (opt *Options) getDialer() func() (net.Conn, error) {
 	if opt.Dialer != nil {
 		return func() (net.Conn, error) {
@@ -111,15 +188,14 @@ func (opt *Options) getDialer() func() (net.Conn, error) {
 }
 
 func newConnPool(opt *Options) *pool.ConnPool {
-	p := pool.NewConnPool(
-		opt.getDialer(),
-		opt.PoolSize,
-		opt.PoolTimeout,
-		opt.IdleTimeout,
-		opt.IdleCheckFrequency,
-	)
-	p.OnClose = func(cn *pool.Conn) error {
-		return terminateConn(cn)
-	}
-	return p
+	return pool.NewConnPool(&pool.Options{
+		Dial:               opt.getDialer(),
+		PoolSize:           opt.PoolSize,
+		PoolTimeout:        opt.PoolTimeout,
+		IdleTimeout:        opt.IdleTimeout,
+		IdleCheckFrequency: opt.IdleCheckFrequency,
+		OnClose: func(cn *pool.Conn) error {
+			return terminateConn(cn)
+		},
+	})
 }

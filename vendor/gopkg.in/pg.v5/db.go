@@ -70,14 +70,16 @@ func (db *DB) conn() (*pool.Conn, error) {
 		return nil, err
 	}
 
-	if !cn.Inited {
+	cn.SetReadWriteTimeout(db.opt.ReadTimeout, db.opt.WriteTimeout)
+
+	if cn.InitedAt.IsZero() {
 		if err := db.initConn(cn); err != nil {
 			_ = db.pool.Remove(cn, err)
 			return nil, err
 		}
+		cn.InitedAt = time.Now()
 	}
 
-	cn.SetReadWriteTimeout(db.opt.ReadTimeout, db.opt.WriteTimeout)
 	return cn, nil
 }
 
@@ -93,7 +95,6 @@ func (db *DB) initConn(cn *pool.Conn) error {
 		return err
 	}
 
-	cn.Inited = true
 	return nil
 }
 
@@ -269,7 +270,7 @@ func (db *DB) CopyTo(writer io.Writer, query interface{}, params ...interface{})
 		return nil, err
 	}
 
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		db.freeConn(cn, err)
 		return nil, err
 	}
@@ -333,7 +334,7 @@ func (db *DB) cancelRequest(processId, secretKey int32) error {
 	}
 
 	writeCancelRequestMsg(cn.Wr, processId, secretKey)
-	if err = cn.Wr.Flush(); err != nil {
+	if err = cn.FlushWriter(); err != nil {
 		return err
 	}
 	cn.Close()
@@ -348,7 +349,7 @@ func (db *DB) simpleQuery(
 		return nil, err
 	}
 
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		return nil, err
 	}
 
@@ -362,7 +363,7 @@ func (db *DB) simpleQueryData(
 		return nil, nil, err
 	}
 
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		return nil, nil, err
 	}
 
@@ -374,7 +375,7 @@ func (db *DB) copyFrom(cn *pool.Conn, r io.Reader, query interface{}, params ...
 		return nil, err
 	}
 
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		return nil, err
 	}
 
@@ -390,13 +391,13 @@ func (db *DB) copyFrom(cn *pool.Conn, r io.Reader, query interface{}, params ...
 			return nil, err
 		}
 
-		if err := cn.Wr.Flush(); err != nil {
+		if err := cn.FlushWriter(); err != nil {
 			return nil, err
 		}
 	}
 
 	writeCopyDone(cn.Wr)
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		return nil, err
 	}
 

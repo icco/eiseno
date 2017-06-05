@@ -59,7 +59,7 @@ const (
 
 func startup(cn *pool.Conn, user, password, database string) error {
 	writeStartupMsg(cn.Wr, user, database)
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		return err
 	}
 
@@ -105,26 +105,19 @@ func startup(cn *pool.Conn, user, password, database string) error {
 
 func enableSSL(cn *pool.Conn, tlsConf *tls.Config) error {
 	writeSSLMsg(cn.Wr)
-	if err := cn.Wr.Flush(); err != nil {
+	if err := cn.FlushWriter(); err != nil {
 		return err
 	}
 
-	b := make([]byte, 1)
-	_, err := io.ReadFull(cn.NetConn, b)
+	c, err := cn.Rd.ReadByte()
 	if err != nil {
 		return err
 	}
-	if b[0] != 'S' {
+	if c != 'S' {
 		return errSSLNotSupported
 	}
 
-	if tlsConf == nil {
-		tlsConf = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-	}
-	cn.NetConn = tls.Client(cn.NetConn, tlsConf)
-
+	cn.SetNetConn(tls.Client(cn.NetConn(), tlsConf))
 	return nil
 }
 
@@ -138,7 +131,7 @@ func authenticate(cn *pool.Conn, user, password string) error {
 		return nil
 	case 3:
 		writePasswordMsg(cn.Wr, password)
-		if err := cn.Wr.Flush(); err != nil {
+		if err := cn.FlushWriter(); err != nil {
 			return err
 		}
 
@@ -173,7 +166,7 @@ func authenticate(cn *pool.Conn, user, password string) error {
 
 		secret := "md5" + md5s(md5s(password+user)+string(b))
 		writePasswordMsg(cn.Wr, secret)
-		if err := cn.Wr.Flush(); err != nil {
+		if err := cn.FlushWriter(); err != nil {
 			return err
 		}
 
@@ -211,7 +204,7 @@ func md5s(s string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func writeStartupMsg(buf *pool.Buffer, user, database string) {
+func writeStartupMsg(buf *pool.WriteBuffer, user, database string) {
 	buf.StartMessage(0)
 	buf.WriteInt32(196608)
 	buf.WriteString("user")
@@ -222,24 +215,24 @@ func writeStartupMsg(buf *pool.Buffer, user, database string) {
 	buf.FinishMessage()
 }
 
-func writeSSLMsg(buf *pool.Buffer) {
+func writeSSLMsg(buf *pool.WriteBuffer) {
 	buf.StartMessage(0)
 	buf.WriteInt32(80877103)
 	buf.FinishMessage()
 }
 
-func writePasswordMsg(buf *pool.Buffer, password string) {
+func writePasswordMsg(buf *pool.WriteBuffer, password string) {
 	buf.StartMessage(passwordMessageMsg)
 	buf.WriteString(password)
 	buf.FinishMessage()
 }
 
-func writeFlushMsg(buf *pool.Buffer) {
+func writeFlushMsg(buf *pool.WriteBuffer) {
 	buf.StartMessage(flushMsg)
 	buf.FinishMessage()
 }
 
-func writeCancelRequestMsg(buf *pool.Buffer, processId, secretKey int32) {
+func writeCancelRequestMsg(buf *pool.WriteBuffer, processId, secretKey int32) {
 	buf.StartMessage(0)
 	buf.WriteInt32(80877102)
 	buf.WriteInt32(processId)
@@ -247,7 +240,7 @@ func writeCancelRequestMsg(buf *pool.Buffer, processId, secretKey int32) {
 	buf.FinishMessage()
 }
 
-func writeQueryMsg(buf *pool.Buffer, fmter orm.QueryFormatter, query interface{}, params ...interface{}) error {
+func writeQueryMsg(buf *pool.WriteBuffer, fmter orm.QueryFormatter, query interface{}, params ...interface{}) error {
 	buf.StartMessage(queryMsg)
 	bytes, err := appendQuery(buf.Bytes, fmter, query, params...)
 	if err != nil {
@@ -274,12 +267,12 @@ func appendQuery(dst []byte, fmter orm.QueryFormatter, query interface{}, params
 	}
 }
 
-func writeSyncMsg(buf *pool.Buffer) {
+func writeSyncMsg(buf *pool.WriteBuffer) {
 	buf.StartMessage(syncMsg)
 	buf.FinishMessage()
 }
 
-func writeParseDescribeSyncMsg(buf *pool.Buffer, name, q string) {
+func writeParseDescribeSyncMsg(buf *pool.WriteBuffer, name, q string) {
 	buf.StartMessage(parseMsg)
 	buf.WriteString(name)
 	buf.WriteString(q)
@@ -346,7 +339,7 @@ func readParseDescribeSync(cn *pool.Conn) ([][]byte, error) {
 }
 
 // Writes BIND, EXECUTE and SYNC messages.
-func writeBindExecuteMsg(buf *pool.Buffer, name string, params ...interface{}) error {
+func writeBindExecuteMsg(buf *pool.WriteBuffer, name string, params ...interface{}) error {
 	const paramLenWidth = 4
 
 	buf.StartMessage(bindMsg)
@@ -412,7 +405,7 @@ func readBindMsg(cn *pool.Conn) error {
 	}
 }
 
-func writeCloseMsg(buf *pool.Buffer, name string) {
+func writeCloseMsg(buf *pool.WriteBuffer, name string) {
 	buf.StartMessage(closeMsg)
 	buf.WriteByte('S')
 	buf.WriteString(name)
@@ -906,14 +899,14 @@ func readCopyData(cn *pool.Conn, w io.Writer) (*types.Result, error) {
 	}
 }
 
-func writeCopyData(buf *pool.Buffer, r io.Reader) (int64, error) {
+func writeCopyData(buf *pool.WriteBuffer, r io.Reader) (int64, error) {
 	buf.StartMessage(copyDataMsg)
 	n, err := buf.ReadFrom(r)
 	buf.FinishMessage()
 	return n, err
 }
 
-func writeCopyDone(buf *pool.Buffer) {
+func writeCopyDone(buf *pool.WriteBuffer) {
 	buf.StartMessage(copyDoneMsg)
 	buf.FinishMessage()
 }
@@ -1010,7 +1003,7 @@ var terminateMessage = []byte{terminateMsg, 0, 0, 0, 4}
 
 func terminateConn(cn *pool.Conn) error {
 	// Don't use cn.Buf because it is racy with user code.
-	_, err := cn.NetConn.Write(terminateMessage)
+	_, err := cn.NetConn().Write(terminateMessage)
 	return err
 }
 
@@ -1056,7 +1049,7 @@ func readBytes(cn *pool.Conn, b []byte) ([]byte, error) {
 
 func readError(cn *pool.Conn) (error, error) {
 	m := map[byte]string{
-		'a': cn.NetConn.RemoteAddr().String(),
+		'a': cn.RemoteAddr().String(),
 	}
 	for {
 		c, err := cn.Rd.ReadByte()

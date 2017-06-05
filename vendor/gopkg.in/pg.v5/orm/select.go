@@ -1,10 +1,6 @@
 package orm
 
-import (
-	"strconv"
-
-	"gopkg.in/pg.v5/types"
-)
+import "strconv"
 
 func Select(db DB, model interface{}) error {
 	q := NewQuery(db, model)
@@ -17,7 +13,7 @@ func Select(db DB, model interface{}) error {
 
 type selectQuery struct {
 	*Query
-	count FormatAppender
+	count string
 }
 
 var _ QueryAppender = (*selectQuery)(nil)
@@ -26,15 +22,15 @@ func (q selectQuery) AppendQuery(b []byte, params ...interface{}) ([]byte, error
 	var err error
 
 	if len(q.with) > 0 {
-		b, err = q.appendWith(b)
+		b, err = q.appendWith(b, q.count)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	b = append(b, "SELECT "...)
-	if q.count != nil {
-		b = q.count.AppendFormat(b, q)
+	if q.count != "" && q.count != "*" {
+		b = append(b, q.count...)
 	} else {
 		b = q.appendColumns(b)
 	}
@@ -81,7 +77,7 @@ func (q selectQuery) AppendQuery(b []byte, params ...interface{}) ([]byte, error
 		}
 	}
 
-	if q.count == nil {
+	if q.count == "" {
 		if len(q.order) > 0 {
 			b = append(b, " ORDER BY "...)
 			for i, f := range q.order {
@@ -107,6 +103,8 @@ func (q selectQuery) AppendQuery(b []byte, params ...interface{}) ([]byte, error
 }
 
 func (q selectQuery) appendColumns(b []byte) []byte {
+	start := len(b)
+
 	if q.columns != nil {
 		b = q.appendQueryColumns(b)
 	} else if q.hasModel() {
@@ -114,9 +112,20 @@ func (q selectQuery) appendColumns(b []byte) []byte {
 	} else {
 		b = append(b, '*')
 	}
+
 	q.forEachHasOneJoin(func(j *join) {
+		if len(b) != start {
+			b = append(b, ", "...)
+			start = len(b)
+		}
+
 		b = j.appendHasOneColumns(b)
+
+		if len(b) == start {
+			b = b[:len(b)-2]
+		}
 	})
+
 	return b
 }
 
@@ -140,23 +149,4 @@ func (q selectQuery) appendModelColumns(b []byte) []byte {
 		b = append(b, f.ColName...)
 	}
 	return b
-}
-
-func (q selectQuery) appendWith(b []byte) ([]byte, error) {
-	var err error
-	b = append(b, "WITH "...)
-	for i, withq := range q.with {
-		if i > 0 {
-			b = append(b, ", "...)
-		}
-		b = types.AppendField(b, withq.name, 1)
-		b = append(b, " AS ("...)
-		b, err = selectQuery{Query: withq.query}.AppendQuery(b)
-		if err != nil {
-			return nil, err
-		}
-		b = append(b, ')')
-	}
-	b = append(b, ' ')
-	return b, nil
 }

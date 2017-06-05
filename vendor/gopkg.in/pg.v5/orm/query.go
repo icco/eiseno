@@ -26,8 +26,8 @@ type Query struct {
 	with       []withQuery
 	tables     []FormatAppender
 	columns    []FormatAppender
-	set        []queryParamsAppender
-	where      []FormatAppender
+	set        []FormatAppender
+	where      []sepFormatAppender
 	joins      []FormatAppender
 	group      []FormatAppender
 	having     []queryParamsAppender
@@ -122,11 +122,11 @@ func (q *Query) With(name string, subq *Query) *Query {
 // WrapWith creates new Query and adds to it current query as
 // common table expression with the given name.
 func (q *Query) WrapWith(name string) *Query {
-	topq := q.New()
-	topq.with = q.with
+	wrapper := q.New()
+	wrapper.with = q.with
 	q.with = nil
-	topq = topq.With(name, q)
-	return topq
+	wrapper = wrapper.With(name, q)
+	return wrapper
 }
 
 func (q *Query) Table(tables ...string) *Query {
@@ -146,7 +146,9 @@ func (q *Query) TableExpr(expr string, params ...interface{}) *Query {
 func (q *Query) Column(columns ...string) *Query {
 	for _, column := range columns {
 		if column == "_" {
-			q.columns = make([]FormatAppender, 0)
+			if q.columns == nil {
+				q.columns = make([]FormatAppender, 0)
+			}
 			continue
 		}
 
@@ -193,8 +195,20 @@ func (q *Query) Set(set string, params ...interface{}) *Query {
 }
 
 func (q *Query) Where(where string, params ...interface{}) *Query {
-	q.where = append(q.where, queryParamsAppender{where, params})
+	q.where = append(q.where, &whereAppender{"AND", where, params})
 	return q
+}
+
+func (q *Query) WhereOr(where string, params ...interface{}) *Query {
+	q.where = append(q.where, &whereAppender{"OR", where, params})
+	return q
+}
+
+// WhereIn is a shortcut for Where and pg.In to work with IN operator:
+//
+//    WhereIn("id IN (?)", 1, 2, 3)
+func (q *Query) WhereIn(where string, params ...interface{}) *Query {
+	return q.Where(where, types.In(params))
 }
 
 func (q *Query) Join(join string, params ...interface{}) *Query {
@@ -287,15 +301,12 @@ func (q *Query) Count() (int, error) {
 	}
 
 	var count int
-	_, err := q.db.QueryOne(Scan(&count), q.countSelectQuery("count(*)"), q.model)
+	_, err := q.db.QueryOne(
+		Scan(&count),
+		q.countQuery().countSelectQuery("count(*)"),
+		q.model,
+	)
 	return count, err
-}
-
-func (q *Query) countSelectQuery(query string) selectQuery {
-	return selectQuery{
-		Query: q.countQuery(),
-		count: queryParamsAppender{query: query},
-	}
 }
 
 func (q *Query) countQuery() *Query {
@@ -303,6 +314,13 @@ func (q *Query) countQuery() *Query {
 		return q.Copy().WrapWith("wrapper").Table("wrapper")
 	}
 	return q
+}
+
+func (q *Query) countSelectQuery(column string) selectQuery {
+	return selectQuery{
+		Query: q,
+		count: column,
+	}
 }
 
 // First selects the first row.
@@ -396,16 +414,16 @@ func (q *Query) forEachHasOneJoin(fn func(*join)) {
 	if q.model == nil {
 		return
 	}
-	q._forEachHasOneJoin(q.model.GetJoins(), fn)
+	q._forEachHasOneJoin(fn, q.model.GetJoins())
 }
 
-func (q *Query) _forEachHasOneJoin(joins []join, fn func(*join)) {
+func (q *Query) _forEachHasOneJoin(fn func(*join), joins []join) {
 	for i := range joins {
 		j := &joins[i]
 		switch j.Rel.Type {
 		case HasOneRelation, BelongsToRelation:
 			fn(j)
-			q._forEachHasOneJoin(j.JoinModel.GetJoins(), fn)
+			q._forEachHasOneJoin(fn, j.JoinModel.GetJoins())
 		}
 	}
 }
@@ -603,6 +621,37 @@ func (q *Query) appendTables(b []byte) []byte {
 	return b
 }
 
+func (q *Query) appendFirstTable(b []byte) []byte {
+	if q.hasModel() {
+		return q.appendTableNameWithAlias(b)
+	}
+	if len(q.tables) > 0 {
+		b = q.tables[0].AppendFormat(b, q)
+	}
+	return b
+}
+
+func (q *Query) hasOtherTables() bool {
+	if q.hasModel() {
+		return len(q.tables) > 0
+	}
+	return len(q.tables) > 1
+}
+
+func (q *Query) appendOtherTables(b []byte) []byte {
+	tables := q.tables
+	if !q.hasModel() {
+		tables = tables[1:]
+	}
+	for i, f := range tables {
+		if i > 0 {
+			b = append(b, ", "...)
+		}
+		b = f.AppendFormat(b, q)
+	}
+	return b
+}
+
 func (q *Query) mustAppendWhere(b []byte) ([]byte, error) {
 	if len(q.where) > 0 {
 		b = q.appendWhere(b)
@@ -625,11 +674,11 @@ func (q *Query) appendWhere(b []byte) []byte {
 	b = append(b, " WHERE "...)
 	for i, f := range q.where {
 		if i > 0 {
-			b = append(b, " AND "...)
+			b = append(b, ' ')
+			b = f.AppendSep(b)
+			b = append(b, ' ')
 		}
-		b = append(b, '(')
 		b = f.AppendFormat(b, q)
-		b = append(b, ')')
 	}
 	return b
 }
@@ -656,8 +705,39 @@ func (q *Query) appendReturning(b []byte) []byte {
 	return b
 }
 
+func (q *Query) appendWith(b []byte, count string) ([]byte, error) {
+	var err error
+	b = append(b, "WITH "...)
+	for i, with := range q.with {
+		if i > 0 {
+			b = append(b, ", "...)
+		}
+		b = types.AppendField(b, with.name, 1)
+		b = append(b, " AS ("...)
+
+		if count != "" {
+			b, err = with.query.countSelectQuery("*").AppendQuery(b)
+		} else {
+			b, err = selectQuery{Query: with.query}.AppendQuery(b)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		b = append(b, ')')
+	}
+	b = append(b, ' ')
+	return b, nil
+}
+
+//------------------------------------------------------------------------------
+
 type wherePKQuery struct {
 	*Query
+}
+
+func (wherePKQuery) AppendSep(b []byte) []byte {
+	return append(b, "AND"...)
 }
 
 func (q wherePKQuery) AppendFormat(b []byte, f QueryFormatter) []byte {

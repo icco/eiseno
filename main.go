@@ -28,7 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/gin-contrib/sessions"
 	"github.com/google/uuid"
-	"github.com/mattes/migrate/migrate"
+	"github.com/mattes/migrate"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -37,7 +37,7 @@ import (
 	"gopkg.in/pg.v5/orm"
 	"gopkg.in/unrolled/secure.v1"
 
-	_ "github.com/mattes/migrate/driver/postgres"
+	_ "github.com/mattes/migrate/database/postgres"
 )
 
 type ByIP []net.IP
@@ -203,12 +203,14 @@ func createSchema(db *pg.DB) error {
 
 	dbUrl := fmt.Sprintf("postgres://%s@%s/%s%s", userinfo, dbOpts.Addr, dbOpts.Database, opts)
 
-	allErrors, ok := migrate.UpSync(dbUrl, "./db/migrations")
-	if !ok {
-		for _, v := range allErrors {
-			log.Printf("Migration error: %v\n", v)
-		}
-		return errors.New("Error running migrations.")
+	mig, err := migrate.New("./db/migrations", dbUrl)
+	if err != nil {
+		return err
+	}
+
+	err = mig.Up()
+	if err != nil {
+		return err
 	}
 
 	return nil
