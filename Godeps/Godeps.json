@@ -166,6 +166,11 @@
 			"Rev": "bf3f0f133ed8f566f61d28e6ff37829f1758baa5"
 		},
 		{
+			"ImportPath": "github.com/mattes/migrate/source/file",
+			"Comment": "v3.0.2",
+			"Rev": "bf3f0f133ed8f566f61d28e6ff37829f1758baa5"
+		},
+		{
 			"ImportPath": "github.com/mattn/go-isatty",
 			"Rev": "dda3de49cbfcec471bd7a70e6cc01fcc3ff90109"
 		},
