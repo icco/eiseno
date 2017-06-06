@@ -1,1 +1,1 @@
-ALTER TABLE credentials ADD COLUMN secret text;
+ALTER TABLE credentials ADD COLUMN IF NOT EXISTS secret text;
