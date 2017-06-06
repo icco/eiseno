@@ -38,6 +38,7 @@ import (
 	"gopkg.in/unrolled/secure.v1"
 
 	_ "github.com/mattes/migrate/database/postgres"
+	_ "github.com/mattes/migrate/source/file"
 )
 
 type ByIP []net.IP
@@ -203,7 +204,7 @@ func createSchema(db *pg.DB) error {
 
 	dbUrl := fmt.Sprintf("postgres://%s@%s/%s%s", userinfo, dbOpts.Addr, dbOpts.Database, opts)
 
-	mig, err := migrate.New("./db/migrations", dbUrl)
+	mig, err := migrate.New("file://./db/migrations", dbUrl)
 	if err != nil {
 		return err
 	}
