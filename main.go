@@ -397,6 +397,45 @@ func uploadHandler(c *gin.Context) {
 	}
 	log.Printf("Published a message with a message ID: %s\n", msgIDs[0])
 
+	// Expand into archive
+	archive, err := gzip.NewReader(bufr)
+	if err != nil {
+		log.Panicf("Error creating gzip reader: %+v", err)
+	}
+	defer archive.Close()
+
+	// Go through file by file
+	tarReader := tar.NewReader(archive)
+	buf := make([]byte, 160)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Panicf("Error reading tar: %+v", err)
+		}
+
+		path := filepath.Join(domain, header.Name)
+		switch header.Typeflag {
+		case tar.TypeDir:
+			continue
+		case tar.TypeReg:
+			w := bkt.Object(path).NewWriter(c)
+			defer w.Close()
+			w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
+			if filepath.Ext(path) != "" {
+				w.ObjectAttrs.ContentType = mime.TypeByExtension(filepath.Ext(path))
+			}
+			wrtn, err := io.CopyBuffer(w, tarReader, buf)
+			if err != nil {
+				log.Printf("Error writing data to GCS: %+v", err)
+			}
+			log.Printf("Wrote %v bytes to %s", wrtn, path)
+		default:
+			log.Printf("Unable to figure out type: %v (%s)", header.Typeflag, path)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"status": "Success!",
 	})
