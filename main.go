@@ -1,10 +1,8 @@
 package main
 
 import (
-	"archive/tar"
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -378,8 +376,6 @@ func uploadHandler(c *gin.Context) {
 	if _, err = io.Copy(w, br); err != nil {
 		log.Fatal(err)
 	}
-	br.Seek(0, 0)
-	bufr := bufio.NewReader(br)
 
 	// Post message
 	tclient, err := pubsub.NewClient(c, "940380154622")
