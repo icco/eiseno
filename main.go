@@ -387,6 +387,7 @@ func uploadHandler(c *gin.Context) {
 	topic := tclient.Topic(topicName)
 	attrs := make(map[string]string)
 	attrs["domain"] = domain
+	attrs["path"] = path
 
 	msgIDs, err := topic.Publish(c, &pubsub.Message{
 		Data:       []byte("deploy"),
