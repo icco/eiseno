@@ -389,8 +389,12 @@ func uploadHandler(c *gin.Context) {
 	defer client.Close()
 	topicName := "onesie-updates"
 	topic := tclient.Topic(topicName)
+	attrs := make(map[string]string)
+	attrs["domain"] = domain
+
 	msgIDs, err := topic.Publish(c, &pubsub.Message{
-		Data: []byte("deploy"),
+		Data:       []byte("deploy"),
+		Attributes: attrs,
 	})
 	if err != nil {
 		log.Fatal("Couldn't publish: %+v", err)
