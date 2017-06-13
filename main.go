@@ -209,7 +209,9 @@ func createSchema(db *pg.DB) error {
 
 	err = mig.Up()
 	if err != nil {
-		return err
+		if err != migrate.ErrNoChange {
+			return err
+		}
 	}
 
 	return nil
